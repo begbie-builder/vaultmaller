@@ -424,6 +424,11 @@ a { color: var(--accent); }
 .lightbox-nav:hover { transform: translateY(-50%) scale(1.08); }
 .lightbox-nav.prev { left: 22px; }
 .lightbox-nav.next { right: 22px; }
+.lb-loading {
+  color: var(--text); background: var(--surface);
+  padding: 22px 28px; border-radius: var(--radius); font-weight: 600;
+  animation: shimmer 1.3s var(--ease) infinite;
+}
 .lightbox-caption {
   position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
   background: var(--surface); padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 500;

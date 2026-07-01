@@ -3,13 +3,16 @@
 **Your media. Every service. One beautiful, private vault.**
 
 Vaultmall is a gorgeous, flat, minimal front-end for all your media. It reads
-folders straight off your computer, pulls in your **Cloudinary** library, syncs
-**Google Drive**, and is built to add more services easily. Every account is
-completely separate and private — no one's media ever mixes with anyone else's.
+folders straight off your computer, pulls in your **Cloudinary** library, and
+syncs **Google Drive**, **Dropbox**, and **MEGA** — and is built to add more
+services easily. Every account is completely separate and private — no one's
+media ever mixes with anyone else's.
 
 - 🖥️ **Local Files** — view a folder on your own computer, 100% in the browser (nothing is uploaded)
-- ☁️ **Cloudinary** — up to 25 GB of free media, sorted into your vault
+- ☁️ **Cloudinary** — all your media, no tagging required
 - ▲ **Google Drive** — your Drive photos and videos
+- 📦 **Dropbox** — media from your Dropbox
+- 🔴 **MEGA** *(beta)* — an end-to-end-encrypted shared folder, decrypted in your browser
 - 🔒 **Private by design** — Firebase Auth gates access; every connection you add is stored only in your own browser, never on a server
 - 🎨 **Flat, animated, rounded UI** — no glows, no gradients, just clean color
 
@@ -85,38 +88,34 @@ Things you'll create (all free):
 
 ## STEP 2 — Cloudinary (your 25 GB of media)
 
-### 2a. Make the account
+**No tagging required — Vaultmall shows everything in your account.** It does this
+through a tiny serverless helper (`functions/api/cloudinary.js`) that runs on
+*your own* Cloudflare deployment and talks to Cloudinary for you. Nothing to turn
+on in Cloudinary, no tags.
+
+### 2a. Make the account & grab three values
 1. Go to **https://cloudinary.com** and click **Sign up for free**.
-2. After signing up you land on the **Dashboard**. Find your **Cloud name**
-   (a short word like `dxyz1234`). Write it down — you'll paste it into Vaultmall.
+2. On the **Dashboard** (or **Settings → API Keys**), find and copy:
+   - **Cloud name** (a short word like `dxyz1234`)
+   - **API Key** (a long number)
+   - **API Secret** (click to reveal)
 
-### 2b. Let Vaultmall list your media (turn on "Resource list")
-By default Cloudinary hides the list of your files. We flip one switch to let
-your vault see media **you tag**:
-1. Click the **⚙️ Settings** gear (bottom-left).
-2. Go to **Security**.
-3. Find **Restricted media types** / **Resource list** and make sure
-   **"Resource list"** is **allowed / enabled** (untick it if it's in the
-   restricted list). Click **Save**.
+### 2b. Connect it *inside the website*
+You do **not** put these in any file. Once Vaultmall is running (Steps 4–5):
+1. Sign in → **Add storage → Cloudinary**.
+2. Paste your **Cloud name**, **API Key**, and **API Secret**. Leave *Folder* blank
+   to show everything (or type a folder to show just that one). Click **Connect**.
+3. That's it — all your media appears. The three values stay in your own browser.
 
-> Some Cloudinary plans word this differently. You're looking for the setting
-> that controls the public `.../image/list/...` endpoint. If media doesn't show
-> up later, this is almost always the switch to check.
-
-### 2c. Tag the media you want in your vault
-Vaultmall shows any Cloudinary file carrying the tag **`vaultmall`** (you can
-change the tag later in the app).
-1. In Cloudinary go to **Media Library**.
-2. Upload some photos/videos, or select existing ones.
-3. Select them → **Add tag** → type `vaultmall` → apply.
-
-### 2d. *(Optional)* Allow uploads from inside Vaultmall
-Want to drag files into Vaultmall itself? Create an **unsigned upload preset**:
-1. **Settings → Upload → Upload presets → Add upload preset**.
-2. Set **Signing Mode = Unsigned**. Give it a name (e.g. `vaultmall_unsigned`). Save.
-3. You'll type this preset name into Vaultmall's Cloudinary settings.
-
-✅ You'll connect Cloudinary from *inside* the app later (just your cloud name).
+> 🔐 **Why a helper function?** Cloudinary's "list everything" API can't be called
+> safely from a plain web page, so the request goes to a small function on your own
+> Cloudflare site. Your key/secret travel from your browser to *your* function over
+> HTTPS and are never stored on any server.
+>
+> ⚠️ Cloudinary therefore only loads on your **deployed** site (Step 5), or when you
+> run the site locally with `npx wrangler pages dev .` instead of a plain static
+> server. On a plain `python -m http.server`, Vaultmall will save your Cloudinary
+> settings but show a "Reconnect" button until it's running with functions.
 
 ---
 
@@ -147,6 +146,33 @@ You do **not** put this in any file. Once Vaultmall is running:
 
 ---
 
+## More distributors *(all optional — connect any, skip the rest)*
+
+### 📦 Dropbox
+1. Go to **https://www.dropbox.com/developers/apps → Create app**.
+2. Choose **Scoped access**, **Full Dropbox** (or App folder), and name it `Vaultmall`.
+3. Open the app's **Permissions** tab and tick **`files.metadata.read`** and
+   **`files.content.read`**. Click **Submit**.
+4. On the **Settings** tab, under **OAuth 2 → Generated access token**, click
+   **Generate** and copy the token.
+5. In Vaultmall: **Add storage → Dropbox**, paste the token, **Connect**.
+
+> Dropbox's generated tokens are short-lived (a few hours). When it expires, just
+> generate a new one and reconnect. The token is kept only in your browser.
+
+### 🔴 MEGA *(beta)*
+MEGA is end-to-end encrypted, so files are decrypted **in your browser** when
+shown — great for privacy, but best for smaller folders.
+1. In MEGA, right-click a folder → **Share → Get link** → include the **decryption
+   key** (choose "Link with key").
+2. In Vaultmall: **Add storage → MEGA**, paste the folder link, **Connect**.
+3. Images load into your grid; videos and large sets decrypt when you open them.
+
+> MEGA loads its decryption library the first time you use it. If you're offline or
+> the folder link has no key, it'll tell you.
+
+---
+
 ## STEP 4 — Try it on your own computer first
 
 You can't just double-click `index.html` (browsers block modules from files).
@@ -168,6 +194,12 @@ Create an account, and try **Add storage → Local Files** to see the magic. �
 > Use **Chrome, Edge, or Brave on desktop** for the Local Files feature — it uses
 > a browser capability Safari and Firefox don't fully support yet. Everything
 > else works everywhere.
+
+> 💡 **Testing Cloudinary locally?** Cloudinary uses the serverless helper, which a
+> plain static server doesn't run. To try it before deploying, use
+> `npx wrangler pages dev .` instead of `python -m http.server`, then open the URL
+> it prints. Everything else (Local, Google Drive, Dropbox, MEGA) works on a plain
+> server too.
 
 ---
 
@@ -240,8 +272,8 @@ Vaultmall is built to grow. Every service is one entry in
 2. Register it in `js/storage/registry.js` with a name, icon, color, and any
    config `fields`. Set `available: true` and remove `soon: true`.
 
-Already scaffolded and waiting to be wired up: **Dropbox, OneDrive, S3/R2, and
-Direct Links**.
+Already scaffolded and waiting to be wired up: **OneDrive, S3/R2, and Direct
+Links**. (Local, Cloudinary, Google Drive, Dropbox, and MEGA are fully wired.)
 
 ---
 
@@ -255,10 +287,14 @@ Direct Links**.
   or use a different device/browser, and those connections aren't there.
 - **Local Files never leave your machine** — the browser reads them directly and
   they're shown from your own device.
-- **Cloudinary** only ever needs your **cloud name** (public). Your API *secret*
-  is never entered or stored anywhere in Vaultmall.
+- **Cloudinary** key/secret stay in your browser and are used only by *your own*
+  site's serverless helper to fetch your list — never stored on a server.
 - **Google Drive** access is **read-only**; you supply your own Client ID and the
   access token lives in memory for the session only — it's never saved.
+- **Dropbox** uses an access token you generate and paste; it's kept only in your
+  browser.
+- **MEGA** stays end-to-end encrypted: files are decrypted **in your browser** from
+  the key in the share link, and nothing is re-uploaded anywhere.
 
 > ⚖️ **Trade-off to know:** because connections live in your browser, they don't
 > sync across devices and are cleared if you wipe browser data. Want them to
@@ -275,8 +311,11 @@ Direct Links**.
 | Login error `auth/unauthorized-domain` | Add your site URL in Firebase → Authentication → Settings → Authorized domains (Step 5c). |
 | Blank page / module errors when opening the file | You opened `index.html` directly. Use a local server (Step 4). |
 | Local Files button missing | Use Chrome, Edge, or Brave on **desktop**. |
-| Cloudinary shows nothing | Turn on **Resource list** (Step 2b) and tag files with `vaultmall` (Step 2c). |
+| Cloudinary shows a "Reconnect" button and won't load | It needs the serverless helper — open your **deployed** site, or run locally with `npx wrangler pages dev .` (not `python -m http.server`). |
+| Cloudinary error about API key/secret | Double-check the **API Key** and **API Secret** copied from your dashboard. |
 | Google Drive won't connect | Paste your Client ID in the app, add your URL to **Authorized JavaScript origins**, and add yourself as a **Test user** (Step 3). |
+| Dropbox says token invalid/expired | Generated tokens are short-lived — generate a fresh one and reconnect. |
+| MEGA won't load | Make sure the share link **includes the decryption key**, and keep folders modest (everything decrypts in-browser). |
 | My connections vanished after clearing browser data | Expected — connections live in your browser's localStorage. Just reconnect (or ask to enable account sync). |
 
 ---

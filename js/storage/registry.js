@@ -8,6 +8,8 @@
 import * as local from "./local.js";
 import * as cloudinary from "./cloudinary.js";
 import * as gdrive from "./googledrive.js";
+import * as dropbox from "./dropbox.js";
+import * as mega from "./mega.js";
 
 export const PROVIDERS = {
   local: {
@@ -23,15 +25,16 @@ export const PROVIDERS = {
   cloudinary: {
     id: "cloudinary",
     name: "Cloudinary",
-    desc: "Up to 25 GB free media CDN",
+    desc: "All your media — no tags needed",
     icon: "☁",
     color: "#3448c5",
     kind: "cloud",
     available: true,
     fields: [
       { key: "cloudName", label: "Cloud name", placeholder: "your-cloud-name", required: true },
-      { key: "tag", label: "Tag to show", placeholder: "vaultmall", required: false, default: "vaultmall" },
-      { key: "uploadPreset", label: "Upload preset (optional)", placeholder: "unsigned_preset", required: false },
+      { key: "apiKey", label: "API Key", placeholder: "123456789012345", required: true },
+      { key: "apiSecret", label: "API Secret", placeholder: "your-api-secret", required: true, type: "password" },
+      { key: "folder", label: "Folder (optional)", placeholder: "leave blank for everything", required: false },
     ],
     module: cloudinary,
   },
@@ -46,17 +49,36 @@ export const PROVIDERS = {
     module: gdrive,
   },
 
-  // ---- Easy-to-add next: scaffolded, marked "soon" until wired ----
   dropbox: {
     id: "dropbox",
     name: "Dropbox",
     desc: "Media from your Dropbox",
     icon: "◇",
     color: "#0061ff",
-    kind: "oauth",
-    available: false,
-    soon: true,
+    kind: "cloud",
+    available: true,
+    fields: [
+      { key: "accessToken", label: "Access token", placeholder: "sl.xxxx…", required: true, type: "password" },
+      { key: "folder", label: "Folder (optional)", placeholder: "leave blank for everything", required: false },
+    ],
+    module: dropbox,
   },
+  mega: {
+    id: "mega",
+    name: "MEGA",
+    desc: "A MEGA shared folder link",
+    icon: "◉",
+    color: "#d9272e",
+    kind: "encrypted", // decrypts in-browser; loaded on click, not on page load
+    available: true,
+    beta: true,
+    fields: [
+      { key: "folderUrl", label: "Shared folder link", placeholder: "https://mega.nz/folder/…#key", required: true },
+    ],
+    module: mega,
+  },
+
+  // ---- Easy-to-add next: scaffolded, marked "soon" until wired ----
   onedrive: {
     id: "onedrive",
     name: "OneDrive",

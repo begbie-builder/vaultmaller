@@ -260,13 +260,14 @@ function openAddModal() {
     const connected = !!connections[p.id];
     const disabled = p.soon || (p.available === false && !p.soon);
     const card = el("button", `provider${p.soon ? " soon" : ""}${connected ? " connected" : ""}`);
+    const tag = p.soon ? "Soon" : p.beta ? "Beta" : "";
     card.innerHTML = `
       <div class="p-icon" style="background:${p.color}">${p.icon}</div>
       <div>
         <div class="p-name">${p.name}</div>
         <div class="p-desc">${p.desc}</div>
       </div>
-      ${p.soon ? '<span class="soon-tag">Soon</span>' : ""}
+      ${tag ? `<span class="soon-tag">${tag}</span>` : ""}
       ${connected ? '<span class="p-check">✓</span>' : ""}`;
     if (!disabled) card.addEventListener("click", () => { hide("#add-modal"); openConfig(p.id); });
     if (p.available === false && !p.soon) {
@@ -399,7 +400,7 @@ function renderFieldConfig(p, body, existing) {
     const wrap = el("label", "field");
     wrap.appendChild(el("span", null, f.label + (f.required ? " *" : "")));
     const input = el("input");
-    input.type = "text";
+    input.type = f.type || "text";
     input.placeholder = f.placeholder || "";
     input.value = existing[f.key] || f.default || "";
     input.dataset.key = f.key;
@@ -408,12 +409,19 @@ function renderFieldConfig(p, body, existing) {
     form.appendChild(wrap);
   });
 
-  if (p.id === "cloudinary") {
-    form.appendChild(el("div", "config-note",
-      `<strong>Only your cloud name is needed.</strong> Turn on
-       <em>Settings → Security → Resource list</em> in Cloudinary, and tag the files you want
-       to appear with <code>vaultmall</code>. Your API secret is never used or stored here.`));
-  }
+  const NOTES = {
+    cloudinary: `<strong>Shows everything — no tags needed.</strong> Copy your
+       <em>API Key</em> and <em>API Secret</em> from the Cloudinary dashboard. They stay in
+       your browser and are used only by your own site's serverless helper to list your media.
+       (Listing runs on your deployed Cloudflare site, or locally via <code>npx wrangler pages dev</code>.)`,
+    dropbox: `<strong>Bring your own token.</strong> In the Dropbox App Console create an app,
+       give it the <code>files.metadata.read</code> and <code>files.content.read</code> scopes,
+       then generate an <em>access token</em> and paste it here. It's kept only in your browser.`,
+    mega: `<strong>Beta.</strong> Paste a MEGA <em>shared folder link</em> (it contains the
+       decryption key). Because MEGA is end-to-end encrypted, files are decrypted in your browser
+       when shown, so this works best for smaller folders.`,
+  };
+  if (NOTES[p.id]) form.appendChild(el("div", "config-note", NOTES[p.id]));
 
   const actions = el("div", "config-actions");
   const save = el("button", "btn btn-primary", "Connect");
@@ -434,16 +442,30 @@ function renderFieldConfig(p, body, existing) {
     save.disabled = true;
     save.textContent = "Connecting…";
     try {
-      // Quick validation by attempting a list.
-      await p.module.list(config);
+      // Validate by listing once, and reuse the result (no double load).
+      const items = await p.module.list(config);
       store.saveConnection(state.user.uid, p.id, config);
       state.profile.connections[p.id] = config;
+      state.bySource[p.id] = items || [];
+      delete state.needsReconnect[p.id];
+      rebuildMedia();
       toast(`${p.name} connected`, "", "ok");
       hide("#config-modal");
       renderNav();
-      await loadSource(p.id);
       setView(p.id);
     } catch (err) {
+      if (err && err.soft) {
+        // Config looks fine but couldn't be verified now (e.g. helper not
+        // running locally). Save it so it works once deployed.
+        store.saveConnection(state.user.uid, p.id, config);
+        state.profile.connections[p.id] = config;
+        state.needsReconnect[p.id] = true;
+        toast(`${p.name} saved`, err.message, "");
+        hide("#config-modal");
+        renderNav();
+        setView(p.id);
+        return;
+      }
       toast(`${p.name} error`, err.message, "err");
       save.disabled = false;
       save.textContent = "Connect";
@@ -641,11 +663,28 @@ function stepLightbox(dir) {
   lightboxIndex = (lightboxIndex + dir + items.length) % items.length;
   renderLightbox();
 }
-function renderLightbox() {
+async function renderLightbox() {
   const items = state._visible || [];
   const m = items[lightboxIndex];
   if (!m) return;
   const stage = $("#lightbox-stage");
+  $("#lightbox-caption").textContent = `${m.title} · ${getProvider(m.source)?.name || m.source}`;
+
+  // Some sources (e.g. MEGA) decrypt the file only when opened.
+  if (!m.fullUrl && typeof m.resolveFull === "function") {
+    stage.innerHTML = `<div class="lb-loading">Decrypting…</div>`;
+    const openedFor = lightboxIndex;
+    try {
+      const url = await m.resolveFull();
+      m.fullUrl = url;
+      if (m.type === "image") m.thumbUrl = m.thumbUrl || url;
+      if (lightboxIndex !== openedFor) return; // user navigated away meanwhile
+    } catch {
+      stage.innerHTML = `<div class="lb-loading">Couldn't load this file.</div>`;
+      return;
+    }
+  }
+
   if (m.external) {
     stage.innerHTML = `<a class="btn btn-primary" href="${m.fullUrl}" target="_blank" rel="noopener">Open in ${getProvider(m.source)?.name || "source"} ↗</a>`;
   } else if (m.type === "video") {
@@ -653,7 +692,6 @@ function renderLightbox() {
   } else {
     stage.innerHTML = `<img src="${m.fullUrl}" alt="${escapeHtml(m.title)}">`;
   }
-  $("#lightbox-caption").textContent = `${m.title} · ${getProvider(m.source)?.name || m.source}`;
 }
 
 // ============================================================
