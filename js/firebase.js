@@ -1,6 +1,9 @@
 // ============================================================
-//  Vaultmall — Firebase bootstrap (Auth + Firestore)
-//  Uses the modular SDK straight from the CDN. No build step.
+//  Vaultmall — Firebase bootstrap (Auth only)
+//  We use Firebase ONLY for username/password logins. There is
+//  no database here: each user's connected storage services are
+//  saved in their own browser (see store.js). Loaded straight
+//  from the CDN — no build step.
 // ============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -10,20 +13,10 @@ import {
   signOut,
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  deleteField,
-  serverTimestamp,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import { firebaseConfig, USERNAME_EMAIL_DOMAIN, isConfigured } from "./firebase-config.js";
 
 let auth = null;
-let db = null;
 
 export function initFirebase() {
   if (!isConfigured()) {
@@ -33,8 +26,7 @@ export function initFirebase() {
   }
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
-  db = getFirestore(app);
-  return { auth, db };
+  return { auth };
 }
 
 // Firebase Auth wants an email. We turn a username into a stable,
@@ -44,14 +36,14 @@ function usernameToEmail(username) {
   return `${clean}@${USERNAME_EMAIL_DOMAIN}`;
 }
 
+// Recover the display username from the account email.
+export function usernameOf(user) {
+  if (!user || !user.email) return "user";
+  return user.email.split("@")[0];
+}
+
 export async function signUp(username, password) {
   const cred = await createUserWithEmailAndPassword(auth, usernameToEmail(username), password);
-  // Seed the user's private profile document.
-  await setDoc(doc(db, "users", cred.user.uid), {
-    username: String(username).trim(),
-    createdAt: serverTimestamp(),
-    connections: {},
-  });
   return cred.user;
 }
 
@@ -66,24 +58,6 @@ export async function logOut() {
 
 export function watchAuth(cb) {
   return onAuthStateChanged(auth, cb);
-}
-
-// ---- Per-user connection config (stored privately in Firestore) ----
-
-export async function loadProfile(uid) {
-  const snap = await getDoc(doc(db, "users", uid));
-  if (!snap.exists()) return { username: "user", connections: {} };
-  return snap.data();
-}
-
-export async function saveConnection(uid, providerId, config) {
-  const ref = doc(db, "users", uid);
-  await updateDoc(ref, { [`connections.${providerId}`]: { ...config, updatedAt: Date.now() } });
-}
-
-export async function removeConnection(uid, providerId) {
-  const ref = doc(db, "users", uid);
-  await updateDoc(ref, { [`connections.${providerId}`]: deleteField() });
 }
 
 export function friendlyAuthError(err) {

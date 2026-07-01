@@ -10,7 +10,7 @@ completely separate and private — no one's media ever mixes with anyone else's
 - 🖥️ **Local Files** — view a folder on your own computer, 100% in the browser (nothing is uploaded)
 - ☁️ **Cloudinary** — up to 25 GB of free media, sorted into your vault
 - ▲ **Google Drive** — your Drive photos and videos
-- 🔒 **Private by design** — Firebase Auth + locked-down Firestore rules keep each vault isolated
+- 🔒 **Private by design** — Firebase Auth gates access; every connection you add is stored only in your own browser, never on a server
 - 🎨 **Flat, animated, rounded UI** — no glows, no gradients, just clean color
 
 It's a **no-build static website**: plain HTML, CSS, and JavaScript. That makes
@@ -25,7 +25,7 @@ Follow these steps **in order**. Every step tells you exactly where to click.
 Total time: about 20–30 minutes. You do **not** need to know how to code.
 
 Things you'll create (all free):
-1. A **Firebase** project (handles logins + saves which services you connected)
+1. A **Firebase** project (handles logins only — no database needed)
 2. A **Cloudinary** account (your 25 GB of media)
 3. *(Optional)* a **Google** OAuth key (to show Google Drive)
 4. A **Cloudflare Pages** site (puts your vault online)
@@ -51,43 +51,33 @@ Things you'll create (all free):
 > scenes it quietly turns `yourname` into `yourname@vaultmall.app` so Firebase is
 > happy. You never see this — you just type a username.
 
-### 1c. Create the database
-1. Left menu → **Build → Firestore Database**.
-2. Click **Create database**.
-3. Choose **Start in production mode** (we'll paste secure rules in a second). Click **Next**.
-4. Pick the location closest to you. Click **Enable**. Wait for it to load.
+> That's the only Firebase feature Vaultmall uses — just logins. There's **no
+> database to create and no rules to configure.** Everything each user connects
+> (Cloudinary, Google Drive, folders…) is entered inside the website and saved
+> privately in that user's own browser.
 
-### 1d. Get your Firebase keys
+### 1c. Get your Firebase keys
 1. Click the **gear icon ⚙️** (top-left, next to "Project Overview") → **Project settings**.
 2. Scroll down to **Your apps**. Click the **</> (web)** icon.
 3. Nickname it `vaultmall-web`. **Do NOT** check "Firebase Hosting". Click **Register app**.
 4. You'll see a code block with `const firebaseConfig = { ... }`. **Keep this tab open.**
 
-### 1e. Paste the keys into Vaultmall
+### 1d. Paste the keys into Vaultmall
 1. In this project, open the file **`js/firebase-config.js`**.
-2. Replace every `PASTE_...` value with the matching value from Firebase. It should end up looking like:
+2. Replace every `PASTE_...` value with the matching value from Firebase. You only
+   need these four — it should end up looking like:
    ```js
    export const firebaseConfig = {
      apiKey: "AIzaSyD...realkey...",
      authDomain: "vaultmall-1234.firebaseapp.com",
      projectId: "vaultmall-1234",
-     storageBucket: "vaultmall-1234.appspot.com",
-     messagingSenderId: "839201...",
      appId: "1:839201...:web:abc123...",
    };
    ```
 3. Save the file.
 
 > 🔐 **These keys are safe to put in a public GitHub repo.** They only *identify*
-> your project — they don't grant access. Your data is protected by the rules in
-> the next step, not by hiding these.
-
-### 1f. Publish the security rules (VERY important)
-This is the part that makes sure **nobody can read anyone else's vault.**
-1. In Firebase → **Firestore Database → Rules** tab.
-2. Delete everything in the box.
-3. Open the file **`firestore.rules`** in this project, copy **all** of it, and paste it in.
-4. Click **Publish**.
+> the project that handles logins — they don't grant access to anyone's media.
 
 ✅ Firebase is done.
 
@@ -145,14 +135,15 @@ Want to drag files into Vaultmall itself? Create an **unsigned upload preset**:
    - your Cloudflare URL once you have it, e.g. `https://vaultmall.pages.dev`
 7. Click **Create**. Copy the **Client ID** (ends in `.apps.googleusercontent.com`).
 
-### 3b. Paste it into Vaultmall
-Open **`js/firebase-config.js`** and set:
-```js
-export const googleConfig = {
-  clientId: "1234567-abcdef.apps.googleusercontent.com",
-};
-```
-Save. (Leave it as `PASTE_...` and Google Drive simply won't show up — that's fine.)
+### 3b. Enter it *inside the website* (not in the code)
+You do **not** put this in any file. Once Vaultmall is running:
+1. Sign in → **Add storage → Google Drive**.
+2. Paste your **Client ID** into the box and click **Connect Google Drive**.
+3. It's saved privately in your own browser and Google asks you to approve read-only access.
+
+> Because each person brings their own Client ID, remember to add the site's URL
+> (localhost for testing, and your `pages.dev` URL once live) to that Client's
+> **Authorized JavaScript origins** in Google Cloud.
 
 ---
 
@@ -258,16 +249,21 @@ Direct Links**.
 
 - **Logins** are handled entirely by **Firebase Authentication**. Vaultmall never
   sees or stores your password.
-- **Which services you connected** (and their non-secret settings) live in a
-  Firestore document at `users/{your-id}`. The rules in `firestore.rules` mean
-  **only you, signed in, can read or write it.** One user can never reach
-  another's data.
+- **The services you connect are entered inside the website — never in the code —
+  and saved only in your own browser** (localStorage), namespaced to your login.
+  They never travel to a server, so one user can never reach another's. Sign out,
+  or use a different device/browser, and those connections aren't there.
 - **Local Files never leave your machine** — the browser reads them directly and
   they're shown from your own device.
 - **Cloudinary** only ever needs your **cloud name** (public). Your API *secret*
   is never entered or stored anywhere in Vaultmall.
-- **Google Drive** access is **read-only** and the token lives in memory for the
-  session only — it's never saved.
+- **Google Drive** access is **read-only**; you supply your own Client ID and the
+  access token lives in memory for the session only — it's never saved.
+
+> ⚖️ **Trade-off to know:** because connections live in your browser, they don't
+> sync across devices and are cleared if you wipe browser data. Want them to
+> follow your account everywhere instead? That's a one-file change — ask and it
+> can be switched to sync privately through your Firebase account.
 
 ---
 
@@ -275,13 +271,13 @@ Direct Links**.
 
 | Problem | Fix |
 |---|---|
-| "Firebase isn't configured" on load | You didn't paste your keys into `js/firebase-config.js` (Step 1e). |
+| "Firebase isn't configured" on load | You didn't paste your keys into `js/firebase-config.js` (Step 1d). |
 | Login error `auth/unauthorized-domain` | Add your site URL in Firebase → Authentication → Settings → Authorized domains (Step 5c). |
 | Blank page / module errors when opening the file | You opened `index.html` directly. Use a local server (Step 4). |
 | Local Files button missing | Use Chrome, Edge, or Brave on **desktop**. |
 | Cloudinary shows nothing | Turn on **Resource list** (Step 2b) and tag files with `vaultmall` (Step 2c). |
-| Google Drive won't connect | Add your URL to **Authorized JavaScript origins** and add yourself as a **Test user** (Step 3). |
-| "Missing or insufficient permissions" | Publish `firestore.rules` (Step 1f). |
+| Google Drive won't connect | Paste your Client ID in the app, add your URL to **Authorized JavaScript origins**, and add yourself as a **Test user** (Step 3). |
+| My connections vanished after clearing browser data | Expected — connections live in your browser's localStorage. Just reconnect (or ask to enable account sync). |
 
 ---
 

@@ -1,29 +1,24 @@
 // ============================================================
-//  Vaultmall — Firebase configuration
+//  Vaultmall — Firebase configuration (the app's LOGIN backend)
 // ============================================================
-//  👉 STEP 1 of the README asks you to paste your own Firebase
-//     project keys here. Replace every "PASTE_..." value below
-//     with the values from your Firebase console.
+//  This is the ONLY thing that lives in code, and it is NOT a
+//  per-user secret. It just points Vaultmall at the one Firebase
+//  project that handles username/password logins. It is safe to
+//  commit to a public repo — it only identifies the project.
 //
-//  These keys are SAFE to commit to a public repo. They only
-//  identify your project. Real security comes from the Firestore
-//  security rules (see firestore.rules) — NOT from hiding these.
+//  👉 STEP 1 of the README: replace every "PASTE_..." value below
+//     with the values from YOUR Firebase console.
+//
+//  Everything else — Cloudinary, Google Drive, etc. — is entered
+//  by each user INSIDE the website and stored privately in their
+//  own browser (localStorage). None of that belongs here.
 // ============================================================
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyD...realkey...",
-  authDomain: "vaultmall-1234.firebaseapp.com",
-  projectId: "vaultmall-1234",
-  storageBucket: "vaultmall-1234.appspot.com",
-  messagingSenderId: "839201...",
-  appId: "1:839201...:web:abc123...",
-};
-};
-
-// Optional: Google Drive support. Paste your OAuth Client ID here
-// (README explains where to get it). Leave as-is to hide Drive.
-export const googleConfig = {
-  clientId: "PASTE_YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com",
+  apiKey: "PASTE_YOUR_API_KEY",
+  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
+  projectId: "PASTE_YOUR_PROJECT_ID",
+  appId: "PASTE_YOUR_APP_ID",
 };
 
 // Internal: usernames are stored as emails so Firebase Auth can use
@@ -32,8 +27,4 @@ export const USERNAME_EMAIL_DOMAIN = "vaultmall.app";
 
 export function isConfigured() {
   return !firebaseConfig.apiKey.startsWith("PASTE_");
-}
-
-export function isGoogleConfigured() {
-  return !googleConfig.clientId.startsWith("PASTE_");
 }

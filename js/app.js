@@ -3,6 +3,7 @@
 // ============================================================
 import { isConfigured } from "./firebase-config.js";
 import { PROVIDERS, providerList, getProvider } from "./storage/registry.js";
+import * as store from "./store.js";
 
 // Firebase pulls its SDK from a CDN. We load it *lazily* so a slow or
 // blocked network never leaves the user staring at a blank splash — the
@@ -73,7 +74,12 @@ async function bootFirebase() {
   FB.watchAuth(async (user) => {
     if (user) {
       state.user = user;
-      state.profile = await FB.loadProfile(user.uid);
+      // Username comes from the login; connections come from this
+      // browser's private storage — no server database involved.
+      state.profile = {
+        username: FB.usernameOf(user),
+        connections: store.loadConnections(user.uid),
+      };
       enterApp();
     } else {
       state.user = null;
@@ -305,7 +311,7 @@ function renderLocalConfig(p, body, existing) {
   pickBtn.addEventListener("click", async () => {
     try {
       const folderName = await p.module.pickFolder(state.user.uid);
-      await FB.saveConnection(state.user.uid, "local", { folderName });
+      store.saveConnection(state.user.uid, "local", { folderName });
       state.profile.connections.local = { folderName };
       toast("Folder connected", folderName, "ok");
       hide("#config-modal");
@@ -331,22 +337,39 @@ function renderLocalConfig(p, body, existing) {
   show("#config-modal");
 }
 
-// ---- Google Drive (OAuth) ----
+// ---- Google Drive (OAuth — user supplies their own Client ID) ----
 function renderOAuthConfig(p, body, existing) {
   const connected = !!existing.connected;
+
+  // The user pastes their own Google OAuth Client ID here. It's kept
+  // only in this browser (localStorage), never in the app's code.
+  const field = el("label", "field");
+  field.appendChild(el("span", null, "Your Google OAuth Client ID *"));
+  const input = el("input");
+  input.type = "text";
+  input.placeholder = "1234-abc.apps.googleusercontent.com";
+  input.value = existing.clientId || "";
+  field.appendChild(input);
+  body.appendChild(field);
+
   body.appendChild(el("div", "config-note",
-    `<strong>Read-only.</strong> Vaultmall asks Google for permission to <em>view</em> your Drive media.
-     The access token stays in memory for this session only — never stored.`));
+    `<strong>Read-only, and yours alone.</strong> Vaultmall only asks Google to <em>view</em> your
+     Drive media. The Client ID is saved in <em>your</em> browser; the access token stays in memory
+     for this session only and is never stored. See the README (Step 3) for how to create a Client ID
+     — remember to add this site's URL to your Client's <em>Authorized JavaScript origins</em>.`));
 
   const actions = el("div", "config-actions");
   const btn = el("button", "btn btn-primary", connected ? "Reconnect Google Drive" : "Connect Google Drive");
   btn.addEventListener("click", async () => {
+    const clientId = input.value.trim();
+    if (!clientId) { toast("Client ID required", "Paste your Google OAuth Client ID first.", "err"); return; }
     btn.disabled = true;
     btn.textContent = "Opening Google…";
     try {
-      await p.module.connect();
-      await FB.saveConnection(state.user.uid, "gdrive", { connected: true });
-      state.profile.connections.gdrive = { connected: true };
+      await p.module.connect(clientId);
+      const cfg = { connected: true, clientId };
+      store.saveConnection(state.user.uid, "gdrive", cfg);
+      state.profile.connections.gdrive = cfg;
       toast("Google Drive connected", "", "ok");
       hide("#config-modal");
       renderNav();
@@ -413,7 +436,7 @@ function renderFieldConfig(p, body, existing) {
     try {
       // Quick validation by attempting a list.
       await p.module.list(config);
-      await FB.saveConnection(state.user.uid, p.id, config);
+      store.saveConnection(state.user.uid, p.id, config);
       state.profile.connections[p.id] = config;
       toast(`${p.name} connected`, "", "ok");
       hide("#config-modal");
@@ -432,7 +455,7 @@ function renderFieldConfig(p, body, existing) {
 }
 
 async function disconnectProvider(id) {
-  await FB.removeConnection(state.user.uid, id);
+  store.removeConnection(state.user.uid, id);
   delete state.profile.connections[id];
   delete state.bySource[id];
   state.media = state.media.filter((m) => m.source !== id);
@@ -485,8 +508,6 @@ async function loadSource(id, { silent } = {}) {
     // Each distributor has its own call shape; keep it explicit.
     if (id === "local") {
       items = await p.module.list(state.user.uid, { onProgress: () => {} });
-    } else if (id === "gdrive") {
-      items = await p.module.list();
     } else {
       items = await p.module.list(config);
     }
