@@ -15,10 +15,10 @@
 // ============================================================
 
 export const firebaseConfig = {
-  apiKey: "PASTE_YOUR_API_KEY",
-  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
-  projectId: "PASTE_YOUR_PROJECT_ID",
-  appId: "PASTE_YOUR_APP_ID",
+  apiKey: "AIzaSyDhfPhyts853CC3AKtjeq5avvKoYJtqpH0",
+  authDomain: "vaultmaller.firebaseapp.com",
+  projectId: "vaultmaller",
+  appId: "1:848268514047:web:2a31d0be8312d109fe72ca",
 };
 
 // Internal: usernames are stored as emails so Firebase Auth can use
