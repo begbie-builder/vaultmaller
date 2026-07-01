@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Vaultmall — a beautiful, private media vault for all your storage." />
+  <title>Vaultmall</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- ============ LOADING SPLASH ============ -->
+  <div id="splash" class="splash">
+    <div class="splash-logo">
+      <div class="logo-mark"></div>
+      <span>Vaultmall</span>
+    </div>
+  </div>
+
+  <!-- ============ AUTH SCREEN ============ -->
+  <main id="auth-screen" class="auth-screen hidden">
+    <div class="auth-brand">
+      <div class="logo-mark"></div>
+      <h1>Vaultmall</h1>
+      <p>Your media. Every service. One beautiful vault.</p>
+      <ul class="auth-points">
+        <li><span class="dot dot-a"></span> Read your local folders, privately</li>
+        <li><span class="dot dot-b"></span> Sync Cloudinary, Google Drive &amp; more</li>
+        <li><span class="dot dot-c"></span> Your vault is yours alone — always separate</li>
+      </ul>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab is-active" data-mode="login">Sign in</button>
+        <button class="auth-tab" data-mode="signup">Create account</button>
+      </div>
+
+      <form id="auth-form" class="auth-form" autocomplete="off">
+        <label class="field">
+          <span>Username</span>
+          <input id="auth-username" type="text" placeholder="yourname" autocomplete="username" required minlength="3" />
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password" required minlength="6" />
+        </label>
+        <p id="auth-error" class="auth-error hidden"></p>
+        <button id="auth-submit" type="submit" class="btn btn-primary btn-block">
+          <span class="btn-label">Sign in</span>
+        </button>
+      </form>
+      <p class="auth-fineprint">Your password never leaves Firebase Auth. We never see it.</p>
+    </div>
+  </main>
+
+  <!-- ============ APP SHELL ============ -->
+  <div id="app" class="app hidden">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="logo-mark small"></div>
+        <span class="sidebar-brand">Vaultmall</span>
+      </div>
+
+      <nav class="nav" id="distributor-nav">
+        <button class="nav-item is-active" data-view="all">
+          <span class="nav-icon">▦</span> All media
+        </button>
+        <div class="nav-heading">Distributors</div>
+        <!-- distributor buttons injected here -->
+      </nav>
+
+      <div class="sidebar-bottom">
+        <button class="nav-item" id="add-distributor-btn">
+          <span class="nav-icon">＋</span> Add storage
+        </button>
+        <button class="nav-item" id="theme-toggle">
+          <span class="nav-icon">◑</span> Theme
+        </button>
+        <div class="user-chip">
+          <div class="avatar" id="user-avatar">U</div>
+          <div class="user-meta">
+            <span id="user-name" class="user-name">user</span>
+            <button id="logout-btn" class="link-btn">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <section class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h2 id="view-title">All media</h2>
+          <span id="view-count" class="count-pill">0 items</span>
+        </div>
+        <div class="topbar-right">
+          <div class="search">
+            <span class="search-icon">⌕</span>
+            <input id="search-input" type="text" placeholder="Search your vault…" />
+          </div>
+          <div class="segmented" id="filter-segmented">
+            <button class="seg is-active" data-filter="all">All</button>
+            <button class="seg" data-filter="image">Images</button>
+            <button class="seg" data-filter="video">Video</button>
+          </div>
+        </div>
+      </header>
+
+      <div id="content" class="content">
+        <!-- Empty state -->
+        <div id="empty-state" class="empty-state">
+          <div class="empty-illustration"></div>
+          <h3>Your vault is waiting</h3>
+          <p>Connect a storage service to see your media here.</p>
+          <button class="btn btn-primary" data-open-add>Add your first storage</button>
+        </div>
+        <!-- Media grid injected here -->
+        <div id="media-grid" class="media-grid hidden"></div>
+        <!-- Skeleton loader -->
+        <div id="skeleton" class="media-grid hidden"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ ADD STORAGE MODAL ============ -->
+  <div id="add-modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Add storage</h3>
+        <button class="icon-btn" data-close-modal>✕</button>
+      </div>
+      <p class="modal-sub">Pick a distributor to connect. Each one stays private to your account.</p>
+      <div class="provider-grid" id="provider-grid"><!-- providers injected --></div>
+    </div>
+  </div>
+
+  <!-- ============ PROVIDER CONFIG MODAL ============ -->
+  <div id="config-modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="config-title">Configure</h3>
+        <button class="icon-btn" data-close-config>✕</button>
+      </div>
+      <div id="config-body" class="config-body"><!-- form injected --></div>
+    </div>
+  </div>
+
+  <!-- ============ LIGHTBOX ============ -->
+  <div id="lightbox" class="lightbox hidden">
+    <button class="icon-btn lightbox-close" data-close-lightbox>✕</button>
+    <button class="lightbox-nav prev" data-lb-prev>‹</button>
+    <div id="lightbox-stage" class="lightbox-stage"></div>
+    <button class="lightbox-nav next" data-lb-next>›</button>
+    <div id="lightbox-caption" class="lightbox-caption"></div>
+  </div>
+
+  <!-- ============ TOASTS ============ -->
+  <div id="toasts" class="toasts"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

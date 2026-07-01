@@ -1,0 +1,14 @@
+# Cloudflare Pages security & caching headers.
+# Applied automatically when this file sits at the site root.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(), camera=(), microphone=()
+
+# Long-cache static assets (they're versioned by content anyway).
+/css/*
+  Cache-Control: public, max-age=3600
+/assets/*
+  Cache-Control: public, max-age=86400

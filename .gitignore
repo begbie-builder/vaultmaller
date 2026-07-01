@@ -1,0 +1,11 @@
+# Vaultmall is a no-build static site — very little to ignore.
+.DS_Store
+Thumbs.db
+node_modules/
+*.log
+
+# If you ever add a local secrets file, keep it out of git.
+firebase-config.local.js
+.env
+.env.*
+.wrangler/
