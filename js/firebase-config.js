@@ -11,12 +11,13 @@
 // ============================================================
 
 export const firebaseConfig = {
-  apiKey: "PASTE_YOUR_API_KEY",
-  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
-  projectId: "PASTE_YOUR_PROJECT_ID",
-  storageBucket: "PASTE_YOUR_PROJECT.appspot.com",
-  messagingSenderId: "PASTE_YOUR_SENDER_ID",
-  appId: "PASTE_YOUR_APP_ID",
+  apiKey: "AIzaSyD...realkey...",
+  authDomain: "vaultmall-1234.firebaseapp.com",
+  projectId: "vaultmall-1234",
+  storageBucket: "vaultmall-1234.appspot.com",
+  messagingSenderId: "839201...",
+  appId: "1:839201...:web:abc123...",
+};
 };
 
 // Optional: Google Drive support. Paste your OAuth Client ID here
