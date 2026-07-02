@@ -135,6 +135,42 @@ function wireAvatar() {
   });
 }
 
+// ---- Settings (synced inside meta) ----
+const SETTINGS_DEFAULTS = {
+  density: "comfy",      // comfy | compact
+  defaultView: "timeline", // timeline | albums
+  slideshow: 5,          // seconds per slide
+  autoplay: true,
+  loop: false,
+};
+function getSettings() {
+  return { ...SETTINGS_DEFAULTS, ...(state.meta.settings || {}) };
+}
+function saveSettings(patch) {
+  state.meta.settings = { ...getSettings(), ...patch };
+  if (state.user) { saveMeta(state.user.uid, state.meta); pushSync(); }
+  applySettings();
+}
+function applySettings() {
+  const st = getSettings();
+  document.body.dataset.density = st.density;
+  // reflect current values in every settings switch
+  const map = {
+    "theme-mode": document.body.dataset.theme,
+    "density-mode": st.density,
+    "defview-mode": st.defaultView,
+    "slide-mode": String(st.slideshow),
+    "autoplay-mode": st.autoplay ? "on" : "off",
+    "loop-mode": st.loop ? "on" : "off",
+  };
+  for (const [id, val] of Object.entries(map)) {
+    const sw = $("#" + id);
+    if (!sw) continue;
+    $$(".sw-opt", sw).forEach((o) => o.classList.toggle("is-active", o.dataset.mode === val));
+    if (sw._position) requestAnimationFrame(sw._position);
+  }
+}
+
 // Per-user metadata keys (TMDb/OMDb) — browser-only, like everything else.
 const metaKey = (uid) => `vaultmall:meta:${uid}`;
 function loadMeta(uid) {
@@ -197,6 +233,7 @@ async function bootFirebase() {
       state.films.store = F.loadFilmStore(user.uid);
       state.meta = loadMeta(user.uid);
       if (state.meta.theme) applyTheme(state.meta.theme);
+      applySettings();
       enterApp();
     } else {
       state.user = null;
@@ -262,6 +299,8 @@ function enterApp() {
   $("#user-name").textContent = name;
   $("#user-avatar").textContent = name.slice(0, 1).toUpperCase();
   renderAvatar();
+  state.photos.mode = getSettings().defaultView;
+  $("#settings-username").textContent = name;
   setEnv("photos");
   loadAllMedia();
 }
@@ -300,6 +339,7 @@ function wireAppUI() {
 
   // Lightbox
   $("[data-close-lightbox]").addEventListener("click", closeLightbox);
+  $("#lb-slideshow").addEventListener("click", toggleSlideshow);
   $("[data-lb-prev]").addEventListener("click", () => stepLightbox(-1));
   $("[data-lb-next]").addEventListener("click", () => stepLightbox(1));
   $("#lightbox").addEventListener("click", (e) => { if (e.target.id === "lightbox") closeLightbox(); });
@@ -308,16 +348,89 @@ function wireAppUI() {
       if (e.key === "Escape") closeLightbox();
       if (e.key === "ArrowLeft") stepLightbox(-1);
       if (e.key === "ArrowRight") stepLightbox(1);
+      if (e.key === " " && e.target === document.body) { e.preventDefault(); toggleSlideshow(); }
     } else if (e.key === "Escape") {
       hide("#film-modal"); hide("#match-modal"); hide("#config-modal");
     }
   });
 
-  // Theme switch (Sources page)
+  // Settings controls
   wireSwitch($("#theme-mode"), (v) => {
     applyTheme(v);
     state.meta.theme = v;
     if (state.user) { saveMeta(state.user.uid, state.meta); pushSync(); }
+  });
+  wireSwitch($("#density-mode"), (v) => saveSettings({ density: v }));
+  wireSwitch($("#defview-mode"), (v) => { saveSettings({ defaultView: v }); state.photos.mode = v; });
+  wireSwitch($("#slide-mode"), (v) => saveSettings({ slideshow: +v }));
+  wireSwitch($("#autoplay-mode"), (v) => saveSettings({ autoplay: v === "on" }));
+  wireSwitch($("#loop-mode"), (v) => saveSettings({ loop: v === "on" }));
+
+  $("#set-avatar-btn").addEventListener("click", () => $("#avatar-input").click());
+  $("#del-avatar-btn").addEventListener("click", () => {
+    localStorage.removeItem(avatarKey(state.user.uid));
+    renderAvatar();
+    pushSync();
+    toast("Profile photo removed", "", "ok");
+  });
+  $("#settings-logout").addEventListener("click", () => FB && FB.logOut());
+
+  $("#reset-matches-btn").addEventListener("click", () => {
+    if (!confirm("Clear every film match and let TMDb try again?")) return;
+    state.films.store = { matches: {}, include: state.films.store.include, exclude: state.films.store.exclude };
+    F.saveFilmStore(state.user.uid, state.films.store);
+    pushSync();
+    toast("Matches cleared", "Open Films to re-identify.", "ok");
+  });
+
+  $("#export-btn").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify({
+      connections: state.profile.connections,
+      meta: state.meta,
+      films: state.films.store,
+      albums: state.albums,
+      avatar: localStorage.getItem(avatarKey(state.user.uid)) || null,
+    }, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "vaultmall-settings.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $("#import-btn").addEventListener("click", () => $("#import-input").click());
+  $("#import-input").addEventListener("change", () => {
+    const file = $("#import-input").files && $("#import-input").files[0];
+    $("#import-input").value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const d = JSON.parse(reader.result);
+        if (d.connections) { store.hydrate(state.user.uid, d.connections); state.profile.connections = d.connections; }
+        if (d.albums) { albums.hydrate(state.user.uid, d.albums); state.albums = d.albums; }
+        if (d.films) { F.saveFilmStore(state.user.uid, d.films); state.films.store = d.films; }
+        if (d.meta) { saveMeta(state.user.uid, d.meta); state.meta = d.meta; }
+        if (d.avatar) localStorage.setItem(avatarKey(state.user.uid), d.avatar);
+        renderAvatar();
+        if (state.meta.theme) applyTheme(state.meta.theme);
+        applySettings();
+        pushSync();
+        toast("Settings imported", "", "ok");
+        loadAllMedia();
+      } catch {
+        toast("Import failed", "That file doesn't look like a Vaultmall backup.", "err");
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  $("#clear-cache-btn").addEventListener("click", () => {
+    if (!confirm("Clear this device's cached data? Your account copy stays safe and comes back on reload.")) return;
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith("vaultmall:"))
+      .forEach((k) => localStorage.removeItem(k));
+    location.reload();
   });
 
   // Metadata engine form
@@ -342,7 +455,7 @@ function setEnv(env) {
   document.body.dataset.env = env;
   $$(".envtab").forEach((t) => t.classList.toggle("is-active", t.dataset.env === env));
   positionEnvInk();
-  ["photos", "films", "sources"].forEach((e) => {
+  ["photos", "films", "sources", "settings"].forEach((e) => {
     const sec = $(`#env-${e}`);
     if (e === env) { sec.classList.remove("hidden"); sec.style.animation = "none"; void sec.offsetWidth; sec.style.animation = ""; }
     else sec.classList.add("hidden");
@@ -365,7 +478,10 @@ function wireSwitch(root, onChange) {
   const ink = $(".sw-ink", root);
   const position = () => {
     const a = $(".sw-opt.is-active", root);
-    if (a && ink && a.offsetWidth) { ink.style.width = a.offsetWidth + "px"; ink.style.transform = `translateX(${a.offsetLeft - 2}px)`; }
+    if (a && ink && a.offsetWidth) {
+      ink.style.width = (a.offsetWidth - 6) + "px";
+      ink.style.transform = `translateX(${a.offsetLeft + 3}px)`;
+    }
   };
   root._position = position; // re-measured whenever the env becomes visible
   $$(".sw-opt", root).forEach((b) =>
@@ -386,7 +502,13 @@ function repositionSwitches() {
 function refreshEnv() {
   if (state.env === "photos") renderPhotos();
   else if (state.env === "films") renderFilms();
+  else if (state.env === "settings") renderSettings();
   else renderSources();
+}
+
+function renderSettings() {
+  applySettings();
+  $("#settings-username").textContent = state.profile.username || "user";
 }
 
 // ============================================================
@@ -466,6 +588,12 @@ function renderPhotos() {
     return;
   }
   hide("#photos-empty");
+
+  const phSw = $("#ph-mode");
+  if (phSw) {
+    $$(".sw-opt", phSw).forEach((o) => o.classList.toggle("is-active", o.dataset.mode === state.photos.mode));
+    if (phSw._position) requestAnimationFrame(phSw._position);
+  }
 
   if (state.photos.mode === "albums") {
     strip.classList.remove("hidden");
@@ -1325,14 +1453,34 @@ function disconnectProvider(id) {
 //  Lightbox
 // ============================================================
 let lightboxIndex = 0;
+let slideTimer = null;
+
 function openLightbox(i) {
   lightboxIndex = i;
   renderLightbox();
   show("#lightbox");
 }
 function closeLightbox() {
+  stopSlideshow();
   hide("#lightbox");
   $("#lightbox-stage").innerHTML = "";
+}
+
+function startSlideshow() {
+  const secs = getSettings().slideshow || 5;
+  slideTimer = setInterval(() => stepLightbox(1), secs * 1000);
+  $("#lb-slideshow").classList.add("active");
+  $("#lb-slideshow").textContent = "❚❚";
+}
+function stopSlideshow() {
+  clearInterval(slideTimer);
+  slideTimer = null;
+  const b = $("#lb-slideshow");
+  if (b) { b.classList.remove("active"); b.textContent = "▶"; }
+}
+function toggleSlideshow() {
+  if (slideTimer) stopSlideshow();
+  else startSlideshow();
 }
 function stepLightbox(dir) {
   const items = state._visible || [];
@@ -1361,10 +1509,18 @@ async function renderLightbox() {
     }
   }
 
+  // download target follows the current item
+  const dl = $("#lb-download");
+  if (dl) {
+    if (m.fullUrl && !m.external) { dl.href = m.fullUrl; dl.setAttribute("download", m.title); dl.style.display = ""; }
+    else dl.style.display = "none";
+  }
+
+  const st = getSettings();
   if (m.external) {
     stage.innerHTML = `<a class="btn btn-accent" href="${m.fullUrl}" target="_blank" rel="noopener">Open in ${(getProvider(m.source) || {}).name || "source"} →</a>`;
   } else if (m.type === "video") {
-    stage.innerHTML = `<video src="${m.fullUrl}" controls autoplay></video>`;
+    stage.innerHTML = `<video src="${m.fullUrl}" controls ${st.autoplay ? "autoplay" : ""} ${st.loop ? "loop" : ""}></video>`;
   } else {
     stage.innerHTML = `<img src="${m.fullUrl}" alt="${escapeHtml(m.title)}">`;
   }
