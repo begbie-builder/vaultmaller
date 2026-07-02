@@ -46,6 +46,9 @@ export async function beginAuth() {
     code_challenge_method: "S256",
     redirect_uri: redirectUri(),
     token_access_type: "offline", // gives us a refresh token that keeps working
+    // Ask for exactly what we need; fails loudly at consent time if the
+    // app's Permissions tab doesn't have these ticked.
+    scope: "files.metadata.read files.content.read",
   });
   location.href = `https://www.dropbox.com/oauth2/authorize?${q}`;
 }
@@ -129,9 +132,14 @@ async function rpc(token, endpoint, body) {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (res.status === 401) throw new Error("Dropbox token is invalid or expired. Generate a fresh one.");
+  if (res.status === 401) throw new Error("Dropbox session is invalid or expired. Reconnect Dropbox in Sources.");
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    if (/not permitted to access this endpoint|required scope/i.test(text)) {
+      throw new Error(
+        "Your Dropbox app is missing permissions. In the Dropbox App Console open the Permissions tab, tick files.metadata.read and files.content.read, click Submit, then RECONNECT here (existing connections keep their old permissions)."
+      );
+    }
     throw new Error(`Dropbox error ${res.status}. ${text.slice(0, 120)}`);
   }
   return res.json();
