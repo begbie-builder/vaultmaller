@@ -99,16 +99,6 @@ function renderAvatar() {
 
 function wireAvatar() {
   const input = $("#avatar-input");
-  $("#avatar-btn").addEventListener("click", (e) => {
-    if (e.altKey) {
-      localStorage.removeItem(avatarKey(state.user.uid));
-      renderAvatar();
-      pushSync();
-      toast("Profile photo removed", "", "ok");
-      return;
-    }
-    input.click();
-  });
   input.addEventListener("change", () => {
     const file = input.files && input.files[0];
     input.value = "";
@@ -306,9 +296,9 @@ function enterApp() {
 }
 
 function wireAppUI() {
-  $("#logout-btn").addEventListener("click", () => FB && FB.logOut());
   $("#brand-home").addEventListener("click", () => setEnv("photos"));
   wireAvatar();
+  wireUserMenu();
 
   $$(".envtab").forEach((t) => t.addEventListener("click", () => setEnv(t.dataset.env)));
   window.addEventListener("resize", positionEnvInk);
@@ -380,7 +370,7 @@ function wireAppUI() {
     state.films.store = { matches: {}, include: state.films.store.include, exclude: state.films.store.exclude };
     F.saveFilmStore(state.user.uid, state.films.store);
     pushSync();
-    toast("Matches cleared", "Open Films to re-identify.", "ok");
+    toast("Matches cleared", "Open Cinema to re-identify.", "ok");
   });
 
   $("#export-btn").addEventListener("click", () => {
@@ -450,6 +440,27 @@ function wireAppUI() {
   $("#match-form").addEventListener("submit", (e) => { e.preventDefault(); runMatchSearch(); });
 }
 
+function wireUserMenu() {
+  const btn = $("#user-menu-btn");
+  const menu = $("#user-menu");
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    menu.classList.toggle("hidden");
+  });
+  document.addEventListener("click", (e) => {
+    if (!menu.classList.contains("hidden") && !menu.contains(e.target)) menu.classList.add("hidden");
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") menu.classList.add("hidden"); });
+  menu.addEventListener("click", (e) => {
+    const item = e.target.closest("[data-menu]");
+    if (!item) return;
+    menu.classList.add("hidden");
+    if (item.dataset.menu === "settings") setEnv("settings");
+    else if (item.dataset.menu === "photo") $("#avatar-input").click();
+    else if (item.dataset.menu === "signout") FB && FB.logOut();
+  });
+}
+
 function setEnv(env) {
   state.env = env;
   document.body.dataset.env = env;
@@ -466,9 +477,10 @@ function setEnv(env) {
 }
 
 function positionEnvInk() {
-  const active = $(".envtab.is-active");
   const ink = $("#envink");
-  if (!active || !ink) return;
+  if (!ink) return;
+  const active = $(".envtab.is-active");
+  if (!active) { ink.style.width = "0px"; return; }
   ink.style.width = active.offsetWidth + "px";
   ink.style.transform = `translateX(${active.offsetLeft}px)`;
 }
@@ -479,8 +491,11 @@ function wireSwitch(root, onChange) {
   const position = () => {
     const a = $(".sw-opt.is-active", root);
     if (a && ink && a.offsetWidth) {
-      ink.style.width = (a.offsetWidth - 6) + "px";
-      ink.style.transform = `translateX(${a.offsetLeft + 3}px)`;
+      ink.style.width = a.offsetWidth + "px";
+      ink.style.transform = `translateX(${a.offsetLeft}px)`;
+      const opts = $$(".sw-opt", root);
+      ink.classList.toggle("at-start", a === opts[0]);
+      ink.classList.toggle("at-end", a === opts[opts.length - 1]);
     }
   };
   root._position = position; // re-measured whenever the env becomes visible
@@ -1041,14 +1056,17 @@ function openFilmDetail(entry, match) {
     { cls: "imdb", label: "IMDB", value: match.imdb || "n/a" },
     { cls: "rt", label: "TOMATOES", value: match.rt || "n/a" },
   ];
+  const posterArt = match.poster
+    ? `<img src="${F.posterUrl(match.poster, 500)}" alt="">`
+    : `<div class="poster-fallback"><span class="pf-big">${escapeHtml((match.title || "?").slice(0, 1).toUpperCase())}</span><span class="pf-title">${escapeHtml(match.title)}</span></div>`;
   sheet.innerHTML = `
     <div class="fs-backdrop${match.backdrop ? "" : " no-art"}">
       ${match.backdrop ? `<img src="${F.backdropUrl(match.backdrop)}" alt="">` : ""}
-      <button class="xbtn fs-close" data-x>✕</button>
+      <button class="fs-back" data-x>← BACK</button>
     </div>
-    <div class="fs-body${match.poster ? "" : " solo"}">
-      ${match.poster ? `<div class="fs-poster"><img src="${F.posterUrl(match.poster)}" alt=""></div>` : ""}
-      <div>
+    <div class="fs-body">
+      <div class="fs-poster">${posterArt}</div>
+      <div class="fs-main">
         <h3 class="fs-title">${escapeHtml(match.title)}</h3>
         <div class="fs-meta">
           <span>${match.year || ""}</span>
@@ -1108,6 +1126,7 @@ function openFilmDetail(entry, match) {
   actions.append(play, fix, notFilm);
   $("[data-x]", sheet).addEventListener("click", () => hide("#film-modal"));
   show("#film-modal");
+  sheet.scrollTop = 0;
 }
 
 function playFilm(item) {
@@ -1512,12 +1531,15 @@ async function renderLightbox() {
   // download target follows the current item
   const dl = $("#lb-download");
   if (dl) {
-    if (m.fullUrl && !m.external) { dl.href = m.fullUrl; dl.setAttribute("download", m.title); dl.style.display = ""; }
+    if (m.fullUrl && !m.external && !m.embed) { dl.href = m.fullUrl; dl.setAttribute("download", m.title); dl.style.display = ""; }
     else dl.style.display = "none";
   }
 
   const st = getSettings();
-  if (m.external) {
+  if (m.embed) {
+    // Google Drive videos stream through Drive's own embedded player.
+    stage.innerHTML = `<iframe src="${m.embed}" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+  } else if (m.external) {
     stage.innerHTML = `<a class="btn btn-accent" href="${m.fullUrl}" target="_blank" rel="noopener">Open in ${(getProvider(m.source) || {}).name || "source"} →</a>`;
   } else if (m.type === "video") {
     stage.innerHTML = `<video src="${m.fullUrl}" controls ${st.autoplay ? "autoplay" : ""} ${st.loop ? "loop" : ""}></video>`;

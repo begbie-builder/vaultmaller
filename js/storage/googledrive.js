@@ -80,7 +80,10 @@ export async function list(config = {}) {
         source: "gdrive",
         sub: "Google Drive",
         date: f.modifiedTime ? Date.parse(f.modifiedTime) : 0,
-        external: !isImage, // videos open in Drive rather than inline
+        // Videos stream through Drive's embedded player inside Vaultmall
+        // (requires being signed into Google in this browser).
+        embed: isImage ? "" : `https://drive.google.com/file/d/${f.id}/preview`,
+        external: !isImage,
       });
     }
     pageToken = data.nextPageToken || "";
