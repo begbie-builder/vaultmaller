@@ -173,12 +173,17 @@ with a single click and an approval screen. Nobody generates tokens.
 **Owner setup (once):**
 1. Go to **https://www.dropbox.com/developers/apps → Create app**.
 2. Choose **Scoped access** → **Full Dropbox** → name it after your site.
-3. **Permissions** tab: tick **`files.metadata.read`** and **`files.content.read`** → Submit.
+3. **Permissions** tab: tick **`files.metadata.read`**, **`files.content.read`**,
+   **`sharing.write`** and **`sharing.read`** → Submit. (The sharing pair powers
+   the built-in video player.)
 4. **Settings** tab → **OAuth 2 → Redirect URIs**: add
    - `http://localhost:8000/` (for local testing)
    - `https://YOURSITE.pages.dev/` (your live URL, with the trailing slash)
 5. Copy the **App key** (it's public, like the Firebase keys) into
    `js/firebase-config.js` under `dropboxConfig`.
+
+> Changed permissions later? Reconnect Dropbox in Sources — connections keep the
+> permissions they were approved with.
 
 **Users (every time after):** Sources → Dropbox → **Connect Dropbox** → approve →
 done. The connection keeps itself alive with a refresh token synced to their
@@ -281,9 +286,11 @@ origins → Add** your `https://vaultmall.pages.dev` URL. Save.
 - Every title opens as its own full page: backdrop, poster, ratings, cast, and
   (for shows) a season-by-season episode list.
 - Wrong guess? Open the title → **Fix match** → search TMDb or paste an ID.
-- **Playback:** Local, Cloudinary, Dropbox and MEGA files play right in
-  Vaultmall's viewer. Google Drive videos play through Drive's embedded player
-  inside Vaultmall (be signed into Google in the same browser).
+- **Playback:** Local, Cloudinary, MEGA and Dropbox files play in Vaultmall's
+  own viewer whenever the browser can decode them (that covers most files;
+  hardware HEVC support helps for 4K x265). When it can't, Dropbox videos get
+  a one-click hand-off to Dropbox's player, which transcodes anything. Google
+  Drive videos play through Drive's embedded player inside Vaultmall.
 - Not a film at all? **Not a film → Photos** sends it back to the vault.
 
 **SOURCES** (the switchboard):
