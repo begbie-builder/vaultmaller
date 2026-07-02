@@ -180,7 +180,9 @@ with a single click and an approval screen. Nobody generates tokens.
    - `http://localhost:8000/` (for local testing)
    - `https://YOURSITE.pages.dev/` (your live URL, with the trailing slash)
 5. Still on **Settings**, under **Chooser / Saver / Embedder domains**, add your
-   domain (e.g. `YOURSITE.pages.dev`) — required for the embedded video player.
+   **bare domain only** — `YOURSITE.pages.dev`, no `https://`, no trailing slash
+   (unlike the Redirect URIs above, which want the full URL). Required for the
+   embedded video player.
 6. Copy the **App key** (it's public, like the Firebase keys) into
    `js/firebase-config.js` under `dropboxConfig`.
 
