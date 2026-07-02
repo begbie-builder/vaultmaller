@@ -166,17 +166,27 @@ You do **not** put this in any file. Once Vaultmall is running:
 
 ## More distributors *(all optional — connect any, skip the rest)*
 
-### 📦 Dropbox
-1. Go to **https://www.dropbox.com/developers/apps → Create app**.
-2. Choose **Scoped access**, **Full Dropbox** (or App folder), and name it `Vaultmall`.
-3. Open the app's **Permissions** tab and tick **`files.metadata.read`** and
-   **`files.content.read`**. Click **Submit**.
-4. On the **Settings** tab, under **OAuth 2 → Generated access token**, click
-   **Generate** and copy the token.
-5. In Vaultmall: **Add storage → Dropbox**, paste the token, **Connect**.
+### 📦 Dropbox — one-time setup, then one click for everyone
+You (the site owner) register ONE Dropbox app; after that, every user connects
+with a single click and an approval screen. Nobody generates tokens.
 
-> Dropbox's generated tokens are short-lived (a few hours). When it expires, just
-> generate a new one and reconnect. The token is kept only in your browser.
+**Owner setup (once):**
+1. Go to **https://www.dropbox.com/developers/apps → Create app**.
+2. Choose **Scoped access** → **Full Dropbox** → name it after your site.
+3. **Permissions** tab: tick **`files.metadata.read`** and **`files.content.read`** → Submit.
+4. **Settings** tab → **OAuth 2 → Redirect URIs**: add
+   - `http://localhost:8000/` (for local testing)
+   - `https://YOURSITE.pages.dev/` (your live URL, with the trailing slash)
+5. Copy the **App key** (it's public, like the Firebase keys) into
+   `js/firebase-config.js` under `dropboxConfig`.
+
+**Users (every time after):** Sources → Dropbox → **Connect Dropbox** → approve →
+done. The connection keeps itself alive with a refresh token synced to their
+account.
+
+> Dropbox caps un-reviewed apps at 500 connected users, which is plenty for a
+> personal site. No App key configured? The old paste-a-token fallback still
+> works.
 
 ### 🔴 MEGA *(beta)*
 MEGA is end-to-end encrypted, so files are decrypted **in your browser** when

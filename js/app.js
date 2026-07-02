@@ -225,11 +225,30 @@ async function bootFirebase() {
       if (state.meta.theme) applyTheme(state.meta.theme);
       applySettings();
       enterApp();
+      finishDropboxAuth();
     } else {
       state.user = null;
       showAuth();
     }
   });
+}
+
+// Complete a one-click Dropbox connection if we just came back
+// from their consent page with a code in the URL.
+async function finishDropboxAuth() {
+  const p = getProvider("dropbox");
+  if (!p || !p.module.oauthReady || !p.module.hasPendingAuth()) return;
+  try {
+    const cfg = await p.module.completeAuth();
+    store.saveConnection(state.user.uid, "dropbox", cfg);
+    state.profile.connections.dropbox = cfg;
+    pushSync();
+    toast("Dropbox connected", "", "ok");
+    await loadSource("dropbox");
+    refreshEnv();
+  } catch (e) {
+    toast("Dropbox", e.message, "err");
+  }
 }
 
 // ============================================================
@@ -1307,6 +1326,7 @@ function openConfig(providerId) {
   const existing = (state.profile.connections || {})[providerId] || {};
   if (providerId === "local") renderLocalConfig(p, body, existing);
   else if (providerId === "gdrive") renderOAuthConfig(p, body, existing);
+  else if (providerId === "dropbox" && p.module.oauthReady) renderDropboxConfig(p, body, existing);
   else renderFieldConfig(p, body, existing);
   show("#config-modal");
 }
@@ -1382,6 +1402,33 @@ function renderOAuthConfig(p, body, existing) {
   if (connected) {
     const rm = el("button", "btn btn-danger", "Disconnect");
     rm.addEventListener("click", () => disconnectProvider("gdrive"));
+    actions.appendChild(rm);
+  }
+  body.appendChild(actions);
+}
+
+// ---- Dropbox (one click, the Infuse way) ----
+function renderDropboxConfig(p, body, existing) {
+  const connected = !!(existing.refreshToken || existing.accessToken);
+  body.appendChild(el("div", "config-note",
+    `One click. Dropbox asks you to approve, you come straight back, your media appears. No apps, no tokens, no ceremony.`));
+  const actions = el("div", "config-actions");
+  const btn = el("button", "btn btn-accent", connected ? "Reconnect Dropbox" : "Connect Dropbox");
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.textContent = "Off to Dropbox…";
+    try {
+      await p.module.beginAuth(); // full-page redirect; we resume on return
+    } catch (e) {
+      toast("Dropbox", e.message, "err");
+      btn.disabled = false;
+      btn.textContent = "Connect Dropbox";
+    }
+  });
+  actions.appendChild(btn);
+  if (connected) {
+    const rm = el("button", "btn btn-danger", "Disconnect");
+    rm.addEventListener("click", () => disconnectProvider("dropbox"));
     actions.appendChild(rm);
   }
   body.appendChild(actions);
