@@ -48,7 +48,7 @@ export async function beginAuth() {
     token_access_type: "offline", // gives us a refresh token that keeps working
     // Ask for exactly what we need; fails loudly at consent time if the
     // app's Permissions tab doesn't have these ticked.
-    scope: "files.metadata.read files.content.read",
+    scope: "files.metadata.read files.content.read sharing.write sharing.read",
   });
   location.href = `https://www.dropbox.com/oauth2/authorize?${q}`;
 }
@@ -137,12 +137,69 @@ async function rpc(token, endpoint, body) {
     const text = await res.text().catch(() => "");
     if (/not permitted to access this endpoint|required scope/i.test(text)) {
       throw new Error(
-        "Your Dropbox app is missing permissions. In the Dropbox App Console open the Permissions tab, tick files.metadata.read and files.content.read, click Submit, then RECONNECT here (existing connections keep their old permissions)."
+        "Your Dropbox app is missing permissions. In the Dropbox App Console open the Permissions tab, tick files.metadata.read, files.content.read, sharing.write and sharing.read, click Submit, then RECONNECT here (existing connections keep their old permissions)."
       );
     }
     throw new Error(`Dropbox error ${res.status}. ${text.slice(0, 120)}`);
   }
   return res.json();
+}
+
+// ---- Embedded player ----
+// Browsers can't decode most movie files (mkv / x265), so videos play
+// through Dropbox's own embedded previewer, which transcodes server-side
+// and plays basically anything. It needs a shared link per file and the
+// site's domain added under "Chooser / Embedder domains" in the App
+// Console.
+async function rpcTry(token, endpoint, body) {
+  const res = await fetch(`https://api.dropboxapi.com/2/${endpoint}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text().catch(() => "");
+  let data = {};
+  try { data = JSON.parse(text); } catch { /* keep raw */ }
+  return { ok: res.ok, status: res.status, data, text };
+}
+
+async function sharedLinkFor(token, path) {
+  let r = await rpcTry(token, "sharing/create_shared_link_with_settings", { path });
+  if (r.ok) return r.data.url;
+  if (r.text.includes("shared_link_already_exists")) {
+    r = await rpcTry(token, "sharing/list_shared_links", { path, direct_only: true });
+    if (r.ok && r.data.links && r.data.links[0]) return r.data.links[0].url;
+  }
+  if (/not permitted|required scope/i.test(r.text)) {
+    throw new Error("Playback needs the sharing permissions. In the Dropbox App Console Permissions tab tick sharing.write and sharing.read, Submit, then reconnect Dropbox.");
+  }
+  throw new Error("Couldn't get a Dropbox share link for playback.");
+}
+
+let dropinsPromise = null;
+function loadDropins() {
+  if (window.Dropbox && window.Dropbox.embed) return Promise.resolve();
+  if (!dropinsPromise) {
+    dropinsPromise = new Promise((resolve, reject) => {
+      const sc = document.createElement("script");
+      sc.src = "https://www.dropbox.com/static/api/2/dropins.js";
+      sc.id = "dropboxjs";
+      sc.dataset.appKey = dropboxConfig.appKey;
+      sc.onload = () => resolve();
+      sc.onerror = () => { dropinsPromise = null; reject(new Error("Couldn't load the Dropbox player.")); };
+      document.head.appendChild(sc);
+    });
+  }
+  return dropinsPromise;
+}
+
+// Mount Dropbox's previewer for `path` inside `element`.
+export async function embedInto(element, config, path) {
+  const token = await accessTokenFor(config);
+  const link = await sharedLinkFor(token, path);
+  await loadDropins();
+  element.innerHTML = "";
+  window.Dropbox.embed({ link }, element);
 }
 
 // config: { refreshToken } (one-click) or { accessToken } (manual fallback)
@@ -172,6 +229,7 @@ export async function list(config) {
       fullUrl: link.link,
       source: "dropbox",
       sub: "Dropbox",
+      path: e.path_lower,
       date: e.server_modified ? Date.parse(e.server_modified) : 0,
     };
   });

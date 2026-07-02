@@ -1583,6 +1583,23 @@ async function renderLightbox() {
   }
 
   const st = getSettings();
+  if (m.source === "dropbox" && m.type === "video" && m.path) {
+    // Dropbox's previewer transcodes server-side, so mkv/x265 files
+    // that browsers can't decode natively still play.
+    stage.innerHTML = `<div class="lb-loading">LOADING DROPBOX PLAYER…</div>`;
+    const openedFor = lightboxIndex;
+    try {
+      const wrap = el("div", "dbx-embed");
+      await getProvider("dropbox").module.embedInto(wrap, (state.profile.connections || {}).dropbox || {}, m.path);
+      if (lightboxIndex !== openedFor) return;
+      stage.innerHTML = "";
+      stage.appendChild(wrap);
+    } catch (e) {
+      if (lightboxIndex !== openedFor) return;
+      stage.innerHTML = `<div class="lb-loading">${escapeHtml(e.message)}</div>`;
+    }
+    return;
+  }
   if (m.embed) {
     // Google Drive videos stream through Drive's own embedded player.
     stage.innerHTML = `<iframe src="${m.embed}" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
