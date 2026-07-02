@@ -33,7 +33,7 @@
         <p class="rv" style="--d:4"><span class="idx mono">02</span>Your films, staged like a private cinema.</p>
         <p class="rv" style="--d:5"><span class="idx mono">03</span>Every source yours alone, on every device you sign into.</p>
       </div>
-      <div class="auth-foot mono rv" style="--d:6">PHOTOS / FILMS / SOURCES</div>
+      <div class="auth-foot mono rv" style="--d:6">PHOTOS / CINEMA / SOURCES</div>
     </section>
 
     <section class="auth-right">
@@ -72,9 +72,8 @@
 
       <nav class="envnav" id="envnav">
         <button class="envtab is-active" data-env="photos">Photos</button>
-        <button class="envtab" data-env="films">Films</button>
+        <button class="envtab" data-env="films">Cinema</button>
         <button class="envtab" data-env="sources">Sources</button>
-        <button class="envtab" data-env="settings">Settings</button>
         <span class="envink" id="envink" aria-hidden="true"></span>
       </nav>
 
@@ -84,16 +83,22 @@
           <span class="search-underline"></span>
         </div>
         <div class="userchip">
-          <button id="avatar-btn" class="avatar" title="Change profile photo (Alt-click to remove)">
-            <span id="user-avatar">U</span>
-            <img id="avatar-img" class="hidden" alt="" />
-            <span class="avatar-edit">✎</span>
+          <button id="user-menu-btn" class="userbtn" aria-haspopup="true">
+            <span class="avatar">
+              <span id="user-avatar">U</span>
+              <img id="avatar-img" class="hidden" alt="" />
+            </span>
+            <span class="usercol">
+              <span id="user-name" class="username">user</span>
+              <span class="mono usercaret">MENU ▾</span>
+            </span>
           </button>
+          <div id="user-menu" class="usermenu hidden">
+            <button data-menu="settings">Settings</button>
+            <button data-menu="photo">Change photo</button>
+            <button data-menu="signout">Sign out</button>
+          </div>
           <input id="avatar-input" type="file" accept="image/*" class="hidden" />
-          <span class="usercol">
-            <span id="user-name" class="username">user</span>
-            <button id="logout-btn" class="signout mono">SIGN OUT</button>
-          </span>
         </div>
       </div>
     </header>

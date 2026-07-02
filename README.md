@@ -12,7 +12,7 @@ Every account is completely separate and private.
 
 - 📷 **PHOTOS — the personal vault.** A light, printed-archive feel: strict
   masonry walls, a timeline grouped by month, albums, and a selection mode.
-- 🎬 **FILMS — the private cinema.** A dark screening room: hero banners,
+- 🎬 **CINEMA — the private screening room.** A dark stage: hero banners,
   horizontal category rows, TMDb-powered posters, ratings (TMDb / IMDb /
   Rotten Tomatoes), cast lists — with Jellyfin-style filename matching and a
   manual "Fix match" override when the guess is wrong. **TV shows too:**
@@ -258,7 +258,7 @@ origins → Add** your `https://vaultmall.pages.dev` URL. Save.
 - **Select** turns on selection mode — pick tiles, then *Add to album*.
 - Filter by Photos/Videos; **click any tile** for the lightbox (arrows / `Esc`).
 
-**FILMS** (dark, cinematic):
+**CINEMA** (dark, cinematic):
 - Videos named like `Title (2019).mkv` or with `SxxExx` land here automatically.
 - **TV shows:** name files `Show.S01E02.mkv`, or keep them in folders like
   `TV/Show Name/Season 1/01 - Pilot.mkv` — Vaultmall reads the season folder and
@@ -278,7 +278,7 @@ origins → Add** your `https://vaultmall.pages.dev` URL. Save.
 **Profile photo:** click your avatar (top right) to upload one; it's cropped
 square and synced with your account. Alt-click removes it.
 
-**SETTINGS** (the quiet corner):
+**SETTINGS** (under your profile menu, top right):
 - Theme (Dark default / Light), grid density, which view Photos opens in.
 - Playback: slideshow speed, autoplay and loop for videos.
 - Account: profile photo, sign out.
