@@ -21,6 +21,18 @@ export const firebaseConfig = {
   appId: "1:848268514047:web:2a31d0be8312d109fe72ca",
 };
 
+// Optional: one-click Dropbox. Create ONE Dropbox app for your site
+// (README, "More distributors → Dropbox") and paste its App key here.
+// This is a public identifier like the Firebase keys above, not a
+// secret. Users then connect with a single click; no tokens, no apps.
+export const dropboxConfig = {
+  appKey: "PASTE_YOUR_DROPBOX_APP_KEY",
+};
+
+export function isDropboxConfigured() {
+  return !dropboxConfig.appKey.startsWith("PASTE_");
+}
+
 // Internal: usernames are stored as emails so Firebase Auth can use
 // them. You normally never need to change this.
 export const USERNAME_EMAIL_DOMAIN = "vaultmall.app";

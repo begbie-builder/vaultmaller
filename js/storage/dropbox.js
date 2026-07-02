@@ -1,10 +1,102 @@
 // ============================================================
 //  Distributor: Dropbox
-//  Lists image/video files in your Dropbox using the public
-//  HTTP API and a personal access token you paste in the app.
-//  The token is kept only in your own browser. Temporary,
-//  streamable links are fetched per file for viewing.
+//  Two ways in:
+//  1) One-click OAuth (the Infuse way): the site owner registers
+//     ONE Dropbox app and puts its public App key in
+//     firebase-config.js. Users then just click Connect and
+//     approve — PKCE means no secret and no user-made tokens.
+//     We keep the refresh token (synced with the account) and
+//     mint short-lived access tokens from it as needed.
+//  2) Fallback: a manually generated access token, for owners
+//     who never set an App key.
+//  Temporary, streamable links are fetched per file for viewing.
 // ============================================================
+import { dropboxConfig, isDropboxConfigured } from "../firebase-config.js";
+
+const TOKEN_URL = "https://api.dropboxapi.com/oauth2/token";
+const VERIFIER_KEY = "vaultmall:dbx-verifier";
+
+export const oauthReady = isDropboxConfigured();
+
+// ---- PKCE helpers ----
+function b64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+async function sha256(str) {
+  return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+}
+function randomVerifier() {
+  const a = new Uint8Array(48);
+  crypto.getRandomValues(a);
+  return b64url(a.buffer);
+}
+const redirectUri = () => location.origin + location.pathname;
+
+// Send the user to Dropbox's consent page. We come back with ?code=…
+export async function beginAuth() {
+  if (!oauthReady) throw new Error("Dropbox one-click isn't set up on this site.");
+  const verifier = randomVerifier();
+  sessionStorage.setItem(VERIFIER_KEY, verifier);
+  const challenge = b64url(await sha256(verifier));
+  const q = new URLSearchParams({
+    client_id: dropboxConfig.appKey,
+    response_type: "code",
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    redirect_uri: redirectUri(),
+    token_access_type: "offline", // gives us a refresh token that keeps working
+  });
+  location.href = `https://www.dropbox.com/oauth2/authorize?${q}`;
+}
+
+export function hasPendingAuth() {
+  return !!(new URLSearchParams(location.search).get("code") && sessionStorage.getItem(VERIFIER_KEY));
+}
+
+// Called after Dropbox redirects back: swap the code for tokens.
+export async function completeAuth() {
+  const code = new URLSearchParams(location.search).get("code");
+  const verifier = sessionStorage.getItem(VERIFIER_KEY);
+  sessionStorage.removeItem(VERIFIER_KEY);
+  history.replaceState(null, "", location.pathname + location.hash);
+  const res = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code,
+      grant_type: "authorization_code",
+      code_verifier: verifier,
+      client_id: dropboxConfig.appKey,
+      redirect_uri: redirectUri(),
+    }),
+  });
+  if (!res.ok) throw new Error("Dropbox sign-in failed. Check the App key and redirect URI in your Dropbox app.");
+  const d = await res.json();
+  cached = { token: d.access_token, exp: Date.now() + (d.expires_in - 60) * 1000, refresh: d.refresh_token };
+  return { refreshToken: d.refresh_token };
+}
+
+// Short-lived access tokens, minted from the stored refresh token.
+let cached = { token: null, exp: 0, refresh: null };
+async function accessTokenFor(config) {
+  if (config.accessToken) return config.accessToken; // legacy manual token
+  if (!config.refreshToken) throw new Error("Connect Dropbox first.");
+  if (cached.token && cached.refresh === config.refreshToken && Date.now() < cached.exp) return cached.token;
+  const res = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: config.refreshToken,
+      client_id: dropboxConfig.appKey,
+    }),
+  });
+  if (!res.ok) throw new Error("Dropbox session expired. Reconnect Dropbox in Sources.");
+  const d = await res.json();
+  cached = { token: d.access_token, exp: Date.now() + (d.expires_in - 60) * 1000, refresh: config.refreshToken };
+  return cached.token;
+}
 
 const IMAGE_EXT = ["jpg", "jpeg", "png", "gif", "webp", "avif", "bmp", "heic"];
 const VIDEO_EXT = ["mp4", "webm", "mov", "m4v", "ogv", "avi", "mkv"];
@@ -45,10 +137,9 @@ async function rpc(token, endpoint, body) {
   return res.json();
 }
 
-// config: { accessToken, folder? }
+// config: { refreshToken } (one-click) or { accessToken } (manual fallback)
 export async function list(config) {
-  const token = (config.accessToken || "").trim();
-  if (!token) throw new Error("Add your Dropbox access token.");
+  const token = await accessTokenFor(config);
   const path = config.folder ? (config.folder.startsWith("/") ? config.folder : "/" + config.folder) : "";
 
   const entries = [];
