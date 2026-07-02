@@ -1104,21 +1104,27 @@ function renderFilmSheet(entry, match) {
       <button class="fs-back" data-x>← BACK</button>
     </div>
     <div class="fs-body">
-      ${match.logo
-        ? `<div class="fs-logo"><img src="${F.logoUrl(match.logo)}" alt="${escapeHtml(match.title)}"></div>`
-        : `<h3 class="fs-title">${escapeHtml(match.title)}</h3>`}
-      <div class="fs-meta">
-        <span>${match.year || ""}</span>
-        ${match.runtime ? `<span class="sep"></span><span>${match.runtime} min</span>` : ""}
-        ${(match.genres || []).length ? `<span class="sep"></span><span>${match.genres.join(" / ")}</span>` : ""}
-        <span class="sep"></span><span>${match.kind === "tv" ? "SERIES" : "FILM"}</span>
+      <div class="fs-hero">
+        <div class="fs-left">
+          ${match.logo
+            ? `<div class="fs-logo"><img src="${F.logoUrl(match.logo)}" alt="${escapeHtml(match.title)}"></div>`
+            : `<h3 class="fs-title">${escapeHtml(match.title)}</h3>`}
+          <div class="fs-playrow"></div>
+          <div class="fs-actionrow"></div>
+        </div>
+        <div class="fs-right">
+          <div class="fs-meta">
+            <span>${match.year || ""}</span>
+            ${match.runtime ? `<span class="sep"></span><span>${match.runtime} min</span>` : ""}
+            ${(match.genres || []).length ? `<span class="sep"></span><span>${match.genres.join(" / ")}</span>` : ""}
+            <span class="sep"></span><span>${match.kind === "tv" ? "SERIES" : "FILM"}</span>
+          </div>
+          <p class="fs-overview">${escapeHtml(match.overview)}</p>
+          <div class="scores">
+            ${scores.map((sc) => `<div class="score ${sc.cls}"><b>${escapeHtml(String(sc.value))}</b><span class="mono">${sc.label}</span></div>`).join("")}
+          </div>
+        </div>
       </div>
-      <div class="fs-playrow"></div>
-      <div class="fs-actionrow"></div>
-      <div class="scores">
-        ${scores.map((sc) => `<div class="score ${sc.cls}"><b>${escapeHtml(String(sc.value))}</b><span class="mono">${sc.label}</span></div>`).join("")}
-      </div>
-      <p class="fs-overview">${escapeHtml(match.overview)}</p>
       ${cast.length ? `<div class="fs-cast-head mono">CAST</div><div class="fs-castrow">${cast.map((c) => `
         <span class="castcard">
           ${c.img
