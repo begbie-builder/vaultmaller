@@ -26,7 +26,7 @@ export const firebaseConfig = {
 // This is a public identifier like the Firebase keys above, not a
 // secret. Users then connect with a single click; no tokens, no apps.
 export const dropboxConfig = {
-  appKey: "PASTE_YOUR_DROPBOX_APP_KEY",
+  appKey: "7g8ysa9b3txsmh6",
 };
 
 export function isDropboxConfigured() {
