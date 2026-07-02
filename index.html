@@ -83,7 +83,12 @@
           <span class="search-underline"></span>
         </div>
         <div class="userchip">
-          <span id="user-avatar" class="avatar">U</span>
+          <button id="avatar-btn" class="avatar" title="Change profile photo (Alt-click to remove)">
+            <span id="user-avatar">U</span>
+            <img id="avatar-img" class="hidden" alt="" />
+            <span class="avatar-edit">✎</span>
+          </button>
+          <input id="avatar-input" type="file" accept="image/*" class="hidden" />
           <span class="usercol">
             <span id="user-name" class="username">user</span>
             <button id="logout-btn" class="signout mono">SIGN OUT</button>

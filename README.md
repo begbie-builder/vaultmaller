@@ -2,8 +2,8 @@
 
 **Your media. Every service. One beautiful, private vault.**
 
-Vaultmall is a **dual-core media hub** with a bespoke, editorial design — ink,
-paper, and one signal color; sharp geometry; zero blur, zero glow, zero
+Vaultmall is a **dual-core media hub** with a bespoke, editorial design — deep
+slate, teal, mist and mint; soft rounded geometry; zero blur, zero glow, zero
 translucency. It reads folders straight off your computer, pulls in your
 **Cloudinary** library, and syncs **Google Drive**, **Dropbox**, and **MEGA**.
 Every account is completely separate and private.
@@ -15,7 +15,9 @@ Every account is completely separate and private.
 - 🎬 **FILMS — the private cinema.** A dark screening room: hero banners,
   horizontal category rows, TMDb-powered posters, ratings (TMDb / IMDb /
   Rotten Tomatoes), cast lists — with Jellyfin-style filename matching and a
-  manual "Fix match" override when the guess is wrong.
+  manual "Fix match" override when the guess is wrong. **TV shows too:**
+  episodes named `SxxExx`, or living in `Show Name/Season 2/` folders, fold
+  into one series card with a season-by-season episode list.
 - 🔌 **SOURCES — the switchboard.** One dashboard aggregating every storage
   link into a unified library, with per-service brand marks and live counts.
 
@@ -250,6 +252,10 @@ origins → Add** your `https://vaultmall.pages.dev` URL. Save.
 
 **FILMS** (dark, cinematic):
 - Videos named like `Title (2019).mkv` or with `SxxExx` land here automatically.
+- **TV shows:** name files `Show.S01E02.mkv`, or keep them in folders like
+  `TV/Show Name/Season 1/01 - Pilot.mkv` — Vaultmall reads the season folder and
+  the folder above it as the show's name, groups every episode under one card,
+  and matches the show on TMDb.
 - Add a **free TMDb API key** (Sources → *Metadata engine*; get one at
   themoviedb.org → Settings → API). Vaultmall then identifies each file:
   poster, backdrop, rating, genres, cast. An **OMDb key** (omdbapi.com) is
@@ -260,6 +266,9 @@ origins → Add** your `https://vaultmall.pages.dev` URL. Save.
 **SOURCES** (the switchboard):
 - Connect, reload, or manage every storage service; the unified-library bar
   shows how your collection splits across them.
+
+**Profile photo:** click your avatar (top right) to upload one — it's cropped
+square and stored only in your browser. Alt-click removes it.
 
 > After a reload, **Local Files** and **Google Drive** show a *Reconnect* button.
 > That's on purpose — browsers require one click before granting folder access or

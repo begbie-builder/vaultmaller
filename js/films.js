@@ -48,12 +48,59 @@ export function parseName(raw) {
   return { title, year, season, episode, isSeries: season != null };
 }
 
-// A video looks like a film/episode if the name carries a year or SxxExx,
-// or it's an mkv (rarely used for casual clips).
+// ---- TV detection ----
+// A file is an episode when the filename says SxxExx, OR when it lives
+// in a folder that looks like a season ("…/Show Name/Season 2/ep.mkv",
+// "…/Show Name/S02/…"). The show's name is the folder above the season
+// folder — exactly how Jellyfin libraries are laid out.
+const SEASON_DIR = /^(season[ ._-]*(\d{1,2})|s(\d{1,2}))$/i;
+
+export function classify(item) {
+  const p = parseName(item.title);
+  const segs = String(item.sub || "").split("/").map((s) => s.trim()).filter(Boolean);
+
+  let season = p.season;
+  let episode = p.episode;
+  let seriesTitle = null;
+
+  const si = segs.findIndex((s) => SEASON_DIR.test(s));
+  if (si >= 0) {
+    const m = segs[si].match(SEASON_DIR);
+    const n = m[2] || m[3];
+    if (season == null && n) season = +n;
+    if (si > 0) seriesTitle = segs[si - 1];
+  }
+
+  if (p.isSeries || season != null) {
+    if (!seriesTitle) seriesTitle = p.title || (si > 0 ? segs[si - 1] : segs[segs.length - 1]) || "";
+    if (episode == null) {
+      // "03 - Pilot.mkv" / "Episode 3" style fallbacks
+      const m = item.title.match(/\b(?:e|ep|episode)[ ._-]*(\d{1,3})\b/i) || item.title.match(/^(\d{1,3})\b/);
+      if (m) episode = +m[1];
+    }
+    seriesTitle = seriesTitle.replace(/[._]+/g, " ").trim();
+    if (seriesTitle) {
+      return {
+        kind: "episode",
+        seriesKey: "series:" + seriesTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        seriesTitle,
+        season: season != null ? season : 1,
+        episode: episode != null ? episode : 0,
+        year: p.year,
+      };
+    }
+  }
+  return { kind: "movie", title: p.title, year: p.year };
+}
+
+// A video belongs in Films if it's an episode, carries a year,
+// or is an mkv (rarely used for casual clips).
 export function looksLikeFilm(item) {
   if (item.type !== "video") return false;
+  const c = classify(item);
+  if (c.kind === "episode") return true;
   const p = parseName(item.title);
-  if (p.isSeries || p.year) return true;
+  if (p.year) return true;
   return /\.mkv$/i.test(item.title);
 }
 

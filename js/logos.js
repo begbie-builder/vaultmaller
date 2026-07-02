@@ -29,7 +29,7 @@ export const BRAND = {
   dropbox: { color: "#0061FF", name: "Dropbox" },
   mega: { color: "#D9272E", name: "MEGA" },
   cloudinary: { color: "#3448C5", name: "Cloudinary" },
-  local: { color: "#E8490F", name: "Local Files" },
+  local: { color: "#395B64", name: "Local Files" },
   onedrive: { color: "#0078D4", name: "OneDrive" },
   s3: { color: "#FF9900", name: "S3 / R2" },
   url: { color: "#0F9D8F", name: "Direct Links" },

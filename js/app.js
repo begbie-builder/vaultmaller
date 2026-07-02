@@ -47,6 +47,59 @@ const state = {
   meta: { tmdb: "", omdb: "" },
 };
 
+// Per-user profile photo — a small data-URL kept in the browser.
+const avatarKey = (uid) => `vaultmall:avatar:${uid}`;
+
+function renderAvatar() {
+  const dataUrl = state.user ? localStorage.getItem(avatarKey(state.user.uid)) : null;
+  const img = $("#avatar-img");
+  const initial = $("#user-avatar");
+  if (dataUrl) {
+    img.src = dataUrl;
+    img.classList.remove("hidden");
+    initial.classList.add("hidden");
+  } else {
+    img.classList.add("hidden");
+    initial.classList.remove("hidden");
+  }
+}
+
+function wireAvatar() {
+  const input = $("#avatar-input");
+  $("#avatar-btn").addEventListener("click", (e) => {
+    if (e.altKey) {
+      localStorage.removeItem(avatarKey(state.user.uid));
+      renderAvatar();
+      toast("Profile photo removed", "", "ok");
+      return;
+    }
+    input.click();
+  });
+  input.addEventListener("change", () => {
+    const file = input.files && input.files[0];
+    input.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        // Center-crop to a small square so localStorage stays light.
+        const S = 128;
+        const c = document.createElement("canvas");
+        c.width = S; c.height = S;
+        const side = Math.min(im.width, im.height);
+        c.getContext("2d").drawImage(im, (im.width - side) / 2, (im.height - side) / 2, side, side, 0, 0, S, S);
+        localStorage.setItem(avatarKey(state.user.uid), c.toDataURL("image/jpeg", 0.85));
+        renderAvatar();
+        toast("Profile photo updated", "", "ok");
+      };
+      im.onerror = () => toast("Couldn't read that image", "", "err");
+      im.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 // Per-user metadata keys (TMDb/OMDb) — browser-only, like everything else.
 const metaKey = (uid) => `vaultmall:meta:${uid}`;
 function loadMeta(uid) {
@@ -162,6 +215,7 @@ function enterApp() {
   const name = state.profile.username || "user";
   $("#user-name").textContent = name;
   $("#user-avatar").textContent = name.slice(0, 1).toUpperCase();
+  renderAvatar();
   setEnv("photos");
   loadAllMedia();
 }
@@ -169,6 +223,7 @@ function enterApp() {
 function wireAppUI() {
   $("#logout-btn").addEventListener("click", () => FB && FB.logOut());
   $("#brand-home").addEventListener("click", () => setEnv("photos"));
+  wireAvatar();
 
   $$(".envtab").forEach((t) => t.addEventListener("click", () => setEnv(t.dataset.env)));
   window.addEventListener("resize", positionEnvInk);
@@ -558,6 +613,34 @@ function openAlbumPicker() {
 let heroIndex = 0;
 let heroTimer = null;
 
+// Turn raw film-candidate items into library entries: standalone movies,
+// and series groups (episodes folded into one title, Jellyfin-style).
+function buildLibrary(items) {
+  const fs = state.films.store;
+  const movies = [];
+  const seriesMap = new Map();
+  for (const item of items) {
+    const c = F.classify(item);
+    if (c.kind === "episode") {
+      if (!seriesMap.has(c.seriesKey)) {
+        seriesMap.set(c.seriesKey, { series: true, key: c.seriesKey, title: c.seriesTitle, year: c.year, episodes: [], date: 0 });
+      }
+      const g = seriesMap.get(c.seriesKey);
+      g.episodes.push({ item, season: c.season, episode: c.episode });
+      g.date = Math.max(g.date, item.date || 0);
+    } else {
+      movies.push({ item, key: item.id, title: c.title || item.title, year: c.year, date: item.date || 0 });
+    }
+  }
+  const entries = [];
+  for (const m of movies) entries.push({ ...m, match: fs.matches[m.key] && !fs.matches[m.key].failed ? fs.matches[m.key] : null });
+  for (const g of seriesMap.values()) {
+    g.episodes.sort((a, b) => a.season - b.season || a.episode - b.episode);
+    entries.push({ ...g, match: fs.matches[g.key] && !fs.matches[g.key].failed ? fs.matches[g.key] : null });
+  }
+  return entries;
+}
+
 function renderFilms() {
   const rows = $("#films-rows");
   rows.innerHTML = "";
@@ -567,27 +650,27 @@ function renderFilms() {
   if (!candidates.length) {
     hide("#films-hero"); hide("#films-matchbar");
     $("#films-setup-msg").textContent = Object.keys(state.profile.connections || {}).length
-      ? "No film-looking videos yet. Files named like “Title (2019).mkv” land here automatically — or open any video in Photos and send it to Films."
-      : "Connect a source, then add your free TMDb key — your video files become a film library with posters, ratings and cast.";
+      ? "No film-looking videos yet. Files named like “Title (2019).mkv” or shows in Season folders land here automatically — or open any video in Photos and send it to Films."
+      : "Connect a source, then add your free TMDb key — your video files become a film & TV library with posters, ratings and cast.";
     show("#films-setup");
     return;
   }
   hide("#films-setup");
 
+  const enriched = buildLibrary(candidates);
+
   if (!state.meta.tmdb) {
     hide("#films-hero");
-    const note = el("div", "matchbar", `<span class="mono">ADD A FREE TMDB KEY IN SOURCES TO IDENTIFY THESE ${candidates.length} FILES — POSTERS, RATINGS, CAST.</span>`);
+    const note = el("div", "matchbar", `<span class="mono">ADD A FREE TMDB KEY IN SOURCES TO IDENTIFY THESE ${enriched.length} TITLES — POSTERS, RATINGS, CAST.</span>`);
     rows.appendChild(note);
   } else {
-    autoMatch(candidates);
+    autoMatch(enriched);
   }
-
-  const enriched = candidates.map((item) => ({ item, match: fs.matches[item.id] && !fs.matches[item.id].failed ? fs.matches[item.id] : null }));
 
   // Search mode: one flat row of results
   if (state.search) {
-    const hits = enriched.filter(({ item, match }) =>
-      (match ? match.title : item.title).toLowerCase().includes(state.search));
+    const hits = enriched.filter((e) =>
+      ((e.match ? e.match.title : e.title) || "").toLowerCase().includes(state.search));
     hide("#films-hero");
     rows.appendChild(buildFilmRow(`Results for “${state.search}”`, hits));
     return;
@@ -595,8 +678,11 @@ function renderFilms() {
 
   renderHero(enriched.filter((e) => e.match && e.match.backdrop));
 
-  const recent = [...enriched].sort((a, b) => (b.item.date || 0) - (a.item.date || 0));
+  const recent = [...enriched].sort((a, b) => (b.date || 0) - (a.date || 0));
   rows.appendChild(buildFilmRow("Recently added", recent));
+
+  const shows = enriched.filter((e) => e.series);
+  if (shows.length) rows.appendChild(buildFilmRow("TV Shows", shows));
 
   // Genre rows from matched titles
   const byGenre = new Map();
@@ -642,23 +728,29 @@ function buildFilmRow(title, entries, isUnmatched = false) {
   return row;
 }
 
-function buildPoster({ item, match }, i, isUnmatched) {
+function buildPoster(entry, i, isUnmatched) {
+  const { match } = entry;
   const c = el("article", "poster");
   c.style.setProperty("--d", Math.min(i, 12));
-  const parsed = F.parseName(item.title);
-  const title = match ? match.title : (parsed.title || item.title);
-  const year = match ? match.year : (parsed.year || "");
+  const title = match ? match.title : (entry.title || (entry.item ? entry.item.title : "?"));
+  const year = match ? match.year : (entry.year || "");
+  const right = match
+    ? `<span class="poster-score">★ ${match.vote.toFixed(1)}</span>`
+    : entry.series
+      ? `<span>${entry.episodes.length} EP</span>`
+      : `<span>${escapeHtml((entry.item && entry.item.sub) || "")}</span>`;
   const art = match && match.poster
     ? `<img loading="lazy" src="${F.posterUrl(match.poster)}" alt="">`
     : `<div class="poster-fallback"><span class="pf-big">${escapeHtml((title || "?").slice(0, 1).toUpperCase())}</span><span class="pf-title">${escapeHtml(title)}</span></div>`;
   c.innerHTML = `
     ${!match ? `<span class="poster-flag">${isUnmatched ? "FIX MATCH" : "UNMATCHED"}</span>` : ""}
+    ${entry.series && match ? `<span class="poster-flag series">SERIES · ${entry.episodes.length} EP</span>` : ""}
     <div class="poster-art">${art}</div>
     <div class="poster-strip">
       <span class="poster-name">${escapeHtml(title)}</span>
-      <span class="poster-sub"><span>${year || "—"}</span>${match ? `<span class="poster-score">★ ${match.vote.toFixed(1)}</span>` : `<span>${escapeHtml(item.sub || "")}</span>`}</span>
+      <span class="poster-sub"><span>${year || "—"}</span>${right}</span>
     </div>`;
-  c.addEventListener("click", () => (match ? openFilmDetail(item, match) : openMatchModal(item)));
+  c.addEventListener("click", () => (match ? openFilmDetail(entry, match) : openMatchModal(entry)));
   return c;
 }
 
@@ -674,16 +766,17 @@ function renderHero(entries) {
   const top = [...entries].sort((a, b) => b.match.vote - a.match.vote).slice(0, 5);
   track.innerHTML = "";
   dots.innerHTML = "";
-  top.forEach(({ item, match }, i) => {
+  top.forEach((entry, i) => {
+    const { match } = entry;
     const slide = el("div", "hero-slide");
     slide.innerHTML = `
       <div class="hero-copy">
-        <span class="hero-kicker mono">FEATURED — ${escapeHtml((match.genres || [])[0] || "FILM").toUpperCase()}</span>
+        <span class="hero-kicker mono">FEATURED — ${escapeHtml(entry.series ? "SERIES" : (match.genres || [])[0] || "FILM").toUpperCase()}</span>
         <h3 class="hero-title">${escapeHtml(match.title)}</h3>
         <div class="hero-meta">
           <span>${match.year || ""}</span><span class="sep"></span>
           <span>★ ${match.vote.toFixed(1)} TMDB</span>
-          ${match.runtime ? `<span class="sep"></span><span>${match.runtime} MIN</span>` : ""}
+          ${entry.series ? `<span class="sep"></span><span>${entry.episodes.length} EPISODES</span>` : match.runtime ? `<span class="sep"></span><span>${match.runtime} MIN</span>` : ""}
         </div>
         <p class="hero-over">${escapeHtml(match.overview)}</p>
         <div class="hero-actions"></div>
@@ -691,9 +784,9 @@ function renderHero(entries) {
       <div class="hero-art"><img src="${F.backdropUrl(match.backdrop)}" alt=""></div>`;
     const actions = $(".hero-actions", slide);
     const play = el("button", "btn btn-accent", "▶&nbsp; Play");
-    play.addEventListener("click", () => playFilm(item));
+    play.addEventListener("click", () => playFilm(entry.series ? entry.episodes[0].item : entry.item));
     const details = el("button", "btn btn-ghost", "Details");
-    details.addEventListener("click", () => openFilmDetail(item, match));
+    details.addEventListener("click", () => openFilmDetail(entry, match));
     actions.append(play, details);
     track.appendChild(slide);
 
@@ -716,27 +809,28 @@ function goHero(i) {
 function stepHero(dir) { goHero(heroIndex + dir); }
 
 // ---- auto matching ----
-async function autoMatch(candidates) {
+async function autoMatch(entries) {
   if (state.films.matching || !state.meta.tmdb) return;
   const fs = state.films.store;
-  const todo = candidates.filter((it) => !fs.matches[it.id]);
+  const todo = entries.filter((e) => !fs.matches[e.key]);
   if (!todo.length) { hide("#films-matchbar"); return; }
 
   state.films.matching = true;
   show("#films-matchbar");
   let done = 0;
-  for (const item of todo) {
-    $("#matchbar-label").textContent = `IDENTIFYING ${done + 1}/${todo.length} — ${item.title.slice(0, 40)}`;
+  for (const entry of todo) {
+    $("#matchbar-label").textContent = `IDENTIFYING ${done + 1}/${todo.length} — ${(entry.title || "").slice(0, 40)}`;
     $("#matchbar-fill").style.width = `${Math.round((done / todo.length) * 100)}%`;
     try {
-      const p = F.parseName(item.title);
-      const hits = p.title ? await F.searchTitles(state.meta.tmdb, p.title, p.year) : [];
+      let hits = entry.title ? await F.searchTitles(state.meta.tmdb, entry.title, entry.year) : [];
+      // Series must land on a TV result; movies prefer film results.
+      if (entry.series) hits = hits.filter((h) => h.kind === "tv").concat(hits.filter((h) => h.kind !== "tv"));
       if (hits.length) {
         const detail = await F.titleDetails(state.meta.tmdb, hits[0].kind, hits[0].tmdbId);
         const scores = await F.omdbScores(state.meta.omdb, detail.imdbId).catch(() => ({}));
-        fs.matches[item.id] = { ...detail, ...scores };
+        fs.matches[entry.key] = { ...detail, ...scores };
       } else {
-        fs.matches[item.id] = { failed: true };
+        fs.matches[entry.key] = { failed: true };
       }
     } catch (e) {
       toast("TMDb", e.message, "err");
@@ -750,8 +844,9 @@ async function autoMatch(candidates) {
   setTimeout(() => { hide("#films-matchbar"); if (state.env === "films") renderFilms(); }, 400);
 }
 
-// ---- film detail ----
-function openFilmDetail(item, match) {
+// ---- film / series detail ----
+function openFilmDetail(entry, match) {
+  const item = entry.series ? entry.episodes[0].item : entry.item;
   const sheet = $("#filmsheet");
   const scores = [
     { cls: "tmdb", label: "TMDB", value: match.vote ? match.vote.toFixed(1) : "—" },
@@ -778,21 +873,47 @@ function openFilmDetail(item, match) {
         </div>
         <p class="fs-overview">${escapeHtml(match.overview)}</p>
         <div class="fs-cast">${(match.cast || []).map((c) => `<span>${escapeHtml(c)}</span>`).join("")}</div>
-        <div class="fs-file">SOURCE FILE — ${escapeHtml(item.title)} · ${escapeHtml((getProvider(item.source) || {}).name || item.source)}</div>
+        ${entry.series ? `<div class="fs-episodes"></div>` : ""}
+        <div class="fs-file">${entry.series
+          ? `${entry.episodes.length} FILES · ${escapeHtml((getProvider(item.source) || {}).name || item.source)}`
+          : `SOURCE FILE — ${escapeHtml(item.title)} · ${escapeHtml((getProvider(item.source) || {}).name || item.source)}`}</div>
         <div class="fs-actions"></div>
       </div>
     </div>`;
+
+  // Episode list, grouped by season
+  if (entry.series) {
+    const box = $(".fs-episodes", sheet);
+    const seasons = new Map();
+    for (const ep of entry.episodes) {
+      if (!seasons.has(ep.season)) seasons.set(ep.season, []);
+      seasons.get(ep.season).push(ep);
+    }
+    [...seasons.keys()].sort((a, b) => a - b).forEach((sn) => {
+      box.appendChild(el("div", "fs-season mono", `SEASON ${sn}`));
+      seasons.get(sn).forEach((ep) => {
+        const row = el("button", "fs-ep", `
+          <span class="fs-ep-num mono">E${String(ep.episode).padStart(2, "0")}</span>
+          <span class="fs-ep-name">${escapeHtml(ep.item.title)}</span>
+          <span class="fs-ep-play">▶</span>`);
+        row.addEventListener("click", () => { hide("#film-modal"); playFilm(ep.item); });
+        box.appendChild(row);
+      });
+    });
+  }
+
   const actions = $(".fs-actions", sheet);
-  const play = el("button", "btn btn-accent", "▶&nbsp; Play");
+  const play = el("button", "btn btn-accent", entry.series ? "▶&nbsp; Play first episode" : "▶&nbsp; Play");
   play.addEventListener("click", () => { hide("#film-modal"); playFilm(item); });
   const fix = el("button", "btn btn-ghost-ivory", "Fix match");
-  fix.addEventListener("click", () => { hide("#film-modal"); openMatchModal(item); });
-  const notFilm = el("button", "btn btn-ghost-ivory", "Not a film → Photos");
+  fix.addEventListener("click", () => { hide("#film-modal"); openMatchModal(entry); });
+  const notFilm = el("button", "btn btn-ghost-ivory", entry.series ? "Not a series → Photos" : "Not a film → Photos");
   notFilm.addEventListener("click", () => {
-    state.films.store.exclude.push(item.id);
+    const ids = entry.series ? entry.episodes.map((e) => e.item.id) : [item.id];
+    state.films.store.exclude.push(...ids);
     F.saveFilmStore(state.user.uid, state.films.store);
     hide("#film-modal");
-    toast("Moved to Photos", item.title, "ok");
+    toast("Moved to Photos", match.title, "ok");
     refreshEnv();
   });
   actions.append(play, fix, notFilm);
@@ -806,12 +927,13 @@ function playFilm(item) {
 }
 
 // ---- manual match ----
-let matchTarget = null;
-function openMatchModal(item) {
-  matchTarget = item;
-  $("#match-filename").textContent = item.title;
-  const p = F.parseName(item.title);
-  $("#match-query").value = p.title || item.title;
+let matchTarget = null; // a library entry: { key, title, series?, episodes?, item? }
+function openMatchModal(entry) {
+  matchTarget = entry;
+  $("#match-filename").textContent = entry.series
+    ? `${entry.title} — ${entry.episodes.length} episodes`
+    : (entry.item ? entry.item.title : entry.title);
+  $("#match-query").value = entry.title || "";
   $("#match-results").innerHTML = "";
   show("#match-modal");
   if (state.meta.tmdb) runMatchSearch();
@@ -845,11 +967,15 @@ async function runMatchSearch() {
         try {
           const detail = await F.titleDetails(state.meta.tmdb, h.kind, h.tmdbId);
           const scores = await F.omdbScores(state.meta.omdb, detail.imdbId).catch(() => ({}));
-          state.films.store.matches[matchTarget.id] = { ...detail, ...scores };
-          // Manual link implies: this IS a film.
-          if (!state.films.store.include.includes(matchTarget.id)) state.films.store.include.push(matchTarget.id);
-          state.films.store.exclude = state.films.store.exclude.filter((x) => x !== matchTarget.id);
-          F.saveFilmStore(state.user.uid, state.films.store);
+          const fs = state.films.store;
+          fs.matches[matchTarget.key] = { ...detail, ...scores };
+          // Manual link implies: these files ARE this title.
+          const ids = matchTarget.series ? matchTarget.episodes.map((e) => e.item.id) : [matchTarget.item.id];
+          for (const id of ids) {
+            if (!fs.include.includes(id)) fs.include.push(id);
+          }
+          fs.exclude = fs.exclude.filter((x) => !ids.includes(x));
+          F.saveFilmStore(state.user.uid, fs);
           hide("#match-modal");
           toast("Matched", detail.title, "ok");
           refreshEnv();
