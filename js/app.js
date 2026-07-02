@@ -1066,8 +1066,29 @@ async function autoMatch(entries) {
   setTimeout(() => { hide("#films-matchbar"); if (state.env === "films") renderFilms(); }, 400);
 }
 
-// ---- film / series detail ----
+// ---- film / series title page ----
 function openFilmDetail(entry, match) {
+  renderFilmSheet(entry, match);
+  show("#film-modal");
+  $("#filmsheet").scrollTop = 0;
+  enrichMatch(entry, match); // older matches lack logo/cast photos; fetch once
+}
+
+// Matches saved before logos/cast photos existed get upgraded in place.
+async function enrichMatch(entry, match) {
+  if (match.rich || !state.meta.tmdb || !match.tmdbId) return;
+  try {
+    const detail = await F.titleDetails(state.meta.tmdb, match.kind || "movie", match.tmdbId);
+    const scores = await F.omdbScores(state.meta.omdb, detail.imdbId).catch(() => ({}));
+    Object.assign(match, detail, scores);
+    state.films.store.matches[entry.key] = match;
+    F.saveFilmStore(state.user.uid, state.films.store);
+    pushSync();
+    if (!$("#film-modal").classList.contains("hidden")) renderFilmSheet(entry, match);
+  } catch { /* page still works with what we have */ }
+}
+
+function renderFilmSheet(entry, match) {
   const item = entry.series ? entry.episodes[0].item : entry.item;
   const sheet = $("#filmsheet");
   const scores = [
@@ -1075,35 +1096,41 @@ function openFilmDetail(entry, match) {
     { cls: "imdb", label: "IMDB", value: match.imdb || "n/a" },
     { cls: "rt", label: "TOMATOES", value: match.rt || "n/a" },
   ];
-  const posterArt = match.poster
-    ? `<img src="${F.posterUrl(match.poster, 500)}" alt="">`
-    : `<div class="poster-fallback"><span class="pf-big">${escapeHtml((match.title || "?").slice(0, 1).toUpperCase())}</span><span class="pf-title">${escapeHtml(match.title)}</span></div>`;
+  const cast = (match.cast || []).map((c) => (typeof c === "string" ? { name: c, role: "", img: "" } : c));
+
   sheet.innerHTML = `
     <div class="fs-backdrop${match.backdrop ? "" : " no-art"}">
-      ${match.backdrop ? `<img src="${F.backdropUrl(match.backdrop)}" alt="">` : ""}
+      ${match.backdrop ? `<img src="${F.backdropUrl(match.backdrop, "original")}" alt="">` : ""}
       <button class="fs-back" data-x>← BACK</button>
     </div>
     <div class="fs-body">
-      <div class="fs-poster">${posterArt}</div>
-      <div class="fs-main">
-        <h3 class="fs-title">${escapeHtml(match.title)}</h3>
-        <div class="fs-meta">
-          <span>${match.year || ""}</span>
-          ${match.runtime ? `<span class="sep"></span><span>${match.runtime} min</span>` : ""}
-          ${(match.genres || []).length ? `<span class="sep"></span><span>${match.genres.join(" / ")}</span>` : ""}
-          <span class="sep"></span><span>${match.kind === "tv" ? "SERIES" : "FILM"}</span>
-        </div>
-        <div class="scores">
-          ${scores.map((s) => `<div class="score ${s.cls}"><b>${escapeHtml(String(s.value))}</b><span class="mono">${s.label}</span></div>`).join("")}
-        </div>
-        <p class="fs-overview">${escapeHtml(match.overview)}</p>
-        <div class="fs-cast">${(match.cast || []).map((c) => `<span>${escapeHtml(c)}</span>`).join("")}</div>
-        ${entry.series ? `<div class="fs-episodes"></div>` : ""}
-        <div class="fs-file">${entry.series
-          ? `${entry.episodes.length} FILES · ${escapeHtml((getProvider(item.source) || {}).name || item.source)}`
-          : `SOURCE FILE · ${escapeHtml(item.title)} · ${escapeHtml((getProvider(item.source) || {}).name || item.source)}`}</div>
-        <div class="fs-actions"></div>
+      ${match.logo
+        ? `<div class="fs-logo"><img src="${F.logoUrl(match.logo)}" alt="${escapeHtml(match.title)}"></div>`
+        : `<h3 class="fs-title">${escapeHtml(match.title)}</h3>`}
+      <div class="fs-meta">
+        <span>${match.year || ""}</span>
+        ${match.runtime ? `<span class="sep"></span><span>${match.runtime} min</span>` : ""}
+        ${(match.genres || []).length ? `<span class="sep"></span><span>${match.genres.join(" / ")}</span>` : ""}
+        <span class="sep"></span><span>${match.kind === "tv" ? "SERIES" : "FILM"}</span>
       </div>
+      <div class="fs-playrow"></div>
+      <div class="fs-actionrow"></div>
+      <div class="scores">
+        ${scores.map((sc) => `<div class="score ${sc.cls}"><b>${escapeHtml(String(sc.value))}</b><span class="mono">${sc.label}</span></div>`).join("")}
+      </div>
+      <p class="fs-overview">${escapeHtml(match.overview)}</p>
+      ${cast.length ? `<div class="fs-cast-head mono">CAST</div><div class="fs-castrow">${cast.map((c) => `
+        <span class="castcard">
+          ${c.img
+            ? `<img class="cast-img" loading="lazy" src="${F.profileUrl(c.img)}" alt="">`
+            : `<span class="cast-img cast-noimg">${escapeHtml((c.name || "?").slice(0, 1))}</span>`}
+          <span class="cast-name">${escapeHtml(c.name)}</span>
+          ${c.role ? `<span class="cast-role">${escapeHtml(c.role)}</span>` : ""}
+        </span>`).join("")}</div>` : ""}
+      ${entry.series ? `<div class="fs-episodes"></div>` : ""}
+      <div class="fs-file">${entry.series
+        ? `${entry.episodes.length} FILES · ${escapeHtml((getProvider(item.source) || {}).name || item.source)}`
+        : `SOURCE FILE · ${escapeHtml(item.title)} · ${escapeHtml((getProvider(item.source) || {}).name || item.source)}`}</div>
     </div>`;
 
   // Episode list, grouped by season
@@ -1127,12 +1154,21 @@ function openFilmDetail(entry, match) {
     });
   }
 
-  const actions = $(".fs-actions", sheet);
-  const play = el("button", "btn btn-accent", entry.series ? "▶&nbsp; Play first episode" : "▶&nbsp; Play");
+  // Wide play button, then a quiet row of the useful actions
+  const play = el("button", "btn btn-accent btn-play", entry.series ? "▶&nbsp;&nbsp;Play first episode" : "▶&nbsp;&nbsp;Play");
   play.addEventListener("click", () => { hide("#film-modal"); playFilm(item); });
-  const fix = el("button", "btn btn-ghost-ivory", "Fix match");
+  $(".fs-playrow", sheet).appendChild(play);
+
+  const actions = $(".fs-actionrow", sheet);
+  if (item.fullUrl && !item.external && !item.embed) {
+    const dl = el("a", "btn btn-ghost-ivory btn-sm", "⭳&nbsp; Download");
+    dl.href = item.fullUrl;
+    dl.setAttribute("download", item.title);
+    actions.appendChild(dl);
+  }
+  const fix = el("button", "btn btn-ghost-ivory btn-sm", "Fix match");
   fix.addEventListener("click", () => { hide("#film-modal"); openMatchModal(entry); });
-  const notFilm = el("button", "btn btn-ghost-ivory", entry.series ? "Not a series → Photos" : "Not a film → Photos");
+  const notFilm = el("button", "btn btn-ghost-ivory btn-sm", entry.series ? "Not a series → Photos" : "Not a film → Photos");
   notFilm.addEventListener("click", () => {
     const ids = entry.series ? entry.episodes.map((e) => e.item.id) : [item.id];
     state.films.store.exclude.push(...ids);
@@ -1142,15 +1178,13 @@ function openFilmDetail(entry, match) {
     toast("Moved to Photos", match.title, "ok");
     refreshEnv();
   });
-  actions.append(play, fix, notFilm);
+  actions.append(fix, notFilm);
   $("[data-x]", sheet).addEventListener("click", () => hide("#film-modal"));
-  show("#film-modal");
-  sheet.scrollTop = 0;
 }
 
 function playFilm(item) {
   state._visible = [item];
-  openLightbox(0);
+  openLightbox(0, true); // solo: it's a screening, not a slideshow
 }
 
 // ---- manual match ----
@@ -1519,15 +1553,18 @@ function disconnectProvider(id) {
 //  Lightbox
 // ============================================================
 let lightboxIndex = 0;
+let lightboxSolo = false;
 let slideTimer = null;
 
-function openLightbox(i) {
+function openLightbox(i, solo = false) {
   lightboxIndex = i;
+  lightboxSolo = solo;
   renderLightbox();
   show("#lightbox");
 }
 function closeLightbox() {
   stopSlideshow();
+  lightboxSolo = false;
   hide("#lightbox");
   $("#lightbox-stage").innerHTML = "";
 }
@@ -1561,6 +1598,11 @@ async function renderLightbox() {
   const stage = $("#lightbox-stage");
   $("#lightbox-caption").textContent = `${m.title} · ${(getProvider(m.source) || {}).name || m.source}`;
 
+  // A single film gets a clean screening room: no arrows, no slideshow.
+  const solo = lightboxSolo || items.length < 2;
+  $$(".lb-nav").forEach((n) => n.classList.toggle("hidden", solo));
+  $("#lb-slideshow").classList.toggle("hidden", solo);
+
   if (!m.fullUrl && typeof m.resolveFull === "function") {
     stage.innerHTML = `<div class="lb-loading">DECRYPTING…</div>`;
     const openedFor = lightboxIndex;
@@ -1584,16 +1626,27 @@ async function renderLightbox() {
 
   const st = getSettings();
   if (m.source === "dropbox" && m.type === "video" && m.path) {
-    // Dropbox's previewer transcodes server-side, so mkv/x265 files
-    // that browsers can't decode natively still play.
+    // Browser-friendly formats stream directly; everything else goes
+    // through Dropbox's embedded previewer, with a one-click escape
+    // hatch to Dropbox's own full player if the embed won't cooperate.
+    const nativeOk = /\.(mp4|m4v|mov|webm)$/i.test(m.title);
+    const st2 = getSettings();
+    if (nativeOk && m.fullUrl) {
+      stage.innerHTML = `<video src="${m.fullUrl}" controls ${st2.autoplay ? "autoplay" : ""} ${st2.loop ? "loop" : ""}></video>`;
+      return;
+    }
     stage.innerHTML = `<div class="lb-loading">LOADING DROPBOX PLAYER…</div>`;
     const openedFor = lightboxIndex;
     try {
       const wrap = el("div", "dbx-embed");
-      await getProvider("dropbox").module.embedInto(wrap, (state.profile.connections || {}).dropbox || {}, m.path);
+      const link = await getProvider("dropbox").module.embedInto(wrap, (state.profile.connections || {}).dropbox || {}, m.path);
       if (lightboxIndex !== openedFor) return;
+      const col = el("div", "lb-col");
+      col.appendChild(wrap);
+      col.appendChild(el("div", "lb-under",
+        `<a href="${link}" target="_blank" rel="noopener">NOT PLAYING? OPEN IN THE DROPBOX PLAYER ↗</a>`));
       stage.innerHTML = "";
-      stage.appendChild(wrap);
+      stage.appendChild(col);
     } catch (e) {
       if (lightboxIndex !== openedFor) return;
       stage.innerHTML = `<div class="lb-loading">${escapeHtml(e.message)}</div>`;

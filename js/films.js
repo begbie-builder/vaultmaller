@@ -107,7 +107,9 @@ export function looksLikeFilm(item) {
 // ---- TMDb ----
 const TMDB = "https://api.themoviedb.org/3";
 export const posterUrl = (path, w = 342) => (path ? `https://image.tmdb.org/t/p/w${w}${path}` : "");
-export const backdropUrl = (path) => (path ? `https://image.tmdb.org/t/p/w1280${path}` : "");
+export const backdropUrl = (path, size = "w1280") => (path ? `https://image.tmdb.org/t/p/${size}${path}` : "");
+export const logoUrl = (path) => (path ? `https://image.tmdb.org/t/p/w500${path}` : "");
+export const profileUrl = (path) => (path ? `https://image.tmdb.org/t/p/w185${path}` : "");
 
 async function tmdb(key, path, params = {}) {
   const q = new URLSearchParams({ api_key: key, ...params });
@@ -141,7 +143,11 @@ export async function searchTitles(key, query, year) {
 }
 
 export async function titleDetails(key, kind, id) {
-  const data = await tmdb(key, `/${kind}/${id}`, { append_to_response: "credits,external_ids" });
+  const data = await tmdb(key, `/${kind}/${id}`, {
+    append_to_response: "credits,external_ids,images",
+    include_image_language: "en,null",
+  });
+  const logos = ((data.images || {}).logos || []);
   return {
     tmdbId: id,
     kind,
@@ -149,12 +155,18 @@ export async function titleDetails(key, kind, id) {
     year: ((data.release_date || data.first_air_date || "").slice(0, 4)) || "",
     poster: data.poster_path,
     backdrop: data.backdrop_path,
+    logo: logos.length ? logos[0].file_path : "",
     vote: data.vote_average || 0,
     genres: (data.genres || []).map((g) => g.name),
     runtime: data.runtime || (data.episode_run_time || [])[0] || 0,
     overview: data.overview || "",
     imdbId: (data.external_ids || {}).imdb_id || "",
-    cast: ((data.credits || {}).cast || []).slice(0, 8).map((c) => c.name),
+    cast: ((data.credits || {}).cast || []).slice(0, 12).map((c) => ({
+      name: c.name,
+      role: c.character || "",
+      img: c.profile_path || "",
+    })),
+    rich: true, // has logo + cast photos (older matches get re-fetched lazily)
   };
 }
 

@@ -200,6 +200,7 @@ export async function embedInto(element, config, path) {
   await loadDropins();
   element.innerHTML = "";
   window.Dropbox.embed({ link }, element);
+  return link;
 }
 
 // config: { refreshToken } (one-click) or { accessToken } (manual fallback)
