@@ -268,7 +268,12 @@ origins → Add** your `https://vaultmall.pages.dev` URL. Save.
   themoviedb.org → Settings → API). Vaultmall then identifies each file:
   poster, backdrop, rating, genres, cast. An **OMDb key** (omdbapi.com) is
   optional and adds IMDb + Rotten Tomatoes scores.
+- Every title opens as its own full page: backdrop, poster, ratings, cast, and
+  (for shows) a season-by-season episode list.
 - Wrong guess? Open the title → **Fix match** → search TMDb or paste an ID.
+- **Playback:** Local, Cloudinary, Dropbox and MEGA files play right in
+  Vaultmall's viewer. Google Drive videos play through Drive's embedded player
+  inside Vaultmall (be signed into Google in the same browser).
 - Not a film at all? **Not a film → Photos** sends it back to the vault.
 
 **SOURCES** (the switchboard):

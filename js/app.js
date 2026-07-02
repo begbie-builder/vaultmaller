@@ -1056,14 +1056,17 @@ function openFilmDetail(entry, match) {
     { cls: "imdb", label: "IMDB", value: match.imdb || "n/a" },
     { cls: "rt", label: "TOMATOES", value: match.rt || "n/a" },
   ];
+  const posterArt = match.poster
+    ? `<img src="${F.posterUrl(match.poster, 500)}" alt="">`
+    : `<div class="poster-fallback"><span class="pf-big">${escapeHtml((match.title || "?").slice(0, 1).toUpperCase())}</span><span class="pf-title">${escapeHtml(match.title)}</span></div>`;
   sheet.innerHTML = `
     <div class="fs-backdrop${match.backdrop ? "" : " no-art"}">
       ${match.backdrop ? `<img src="${F.backdropUrl(match.backdrop)}" alt="">` : ""}
-      <button class="xbtn fs-close" data-x>✕</button>
+      <button class="fs-back" data-x>← BACK</button>
     </div>
-    <div class="fs-body${match.poster ? "" : " solo"}">
-      ${match.poster ? `<div class="fs-poster"><img src="${F.posterUrl(match.poster)}" alt=""></div>` : ""}
-      <div>
+    <div class="fs-body">
+      <div class="fs-poster">${posterArt}</div>
+      <div class="fs-main">
         <h3 class="fs-title">${escapeHtml(match.title)}</h3>
         <div class="fs-meta">
           <span>${match.year || ""}</span>
@@ -1123,6 +1126,7 @@ function openFilmDetail(entry, match) {
   actions.append(play, fix, notFilm);
   $("[data-x]", sheet).addEventListener("click", () => hide("#film-modal"));
   show("#film-modal");
+  sheet.scrollTop = 0;
 }
 
 function playFilm(item) {
@@ -1527,12 +1531,15 @@ async function renderLightbox() {
   // download target follows the current item
   const dl = $("#lb-download");
   if (dl) {
-    if (m.fullUrl && !m.external) { dl.href = m.fullUrl; dl.setAttribute("download", m.title); dl.style.display = ""; }
+    if (m.fullUrl && !m.external && !m.embed) { dl.href = m.fullUrl; dl.setAttribute("download", m.title); dl.style.display = ""; }
     else dl.style.display = "none";
   }
 
   const st = getSettings();
-  if (m.external) {
+  if (m.embed) {
+    // Google Drive videos stream through Drive's own embedded player.
+    stage.innerHTML = `<iframe src="${m.embed}" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+  } else if (m.external) {
     stage.innerHTML = `<a class="btn btn-accent" href="${m.fullUrl}" target="_blank" rel="noopener">Open in ${(getProvider(m.source) || {}).name || "source"} →</a>`;
   } else if (m.type === "video") {
     stage.innerHTML = `<video src="${m.fullUrl}" controls ${st.autoplay ? "autoplay" : ""} ${st.loop ? "loop" : ""}></video>`;
