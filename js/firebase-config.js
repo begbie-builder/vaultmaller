@@ -9,9 +9,9 @@
 //  👉 STEP 1 of the README: replace every "PASTE_..." value below
 //     with the values from YOUR Firebase console.
 //
-//  Everything else — Cloudinary, Google Drive, etc. — is entered
-//  by each user INSIDE the website and stored privately in their
-//  own browser (localStorage). None of that belongs here.
+//  Everything else (Cloudinary, Google Drive, etc.) is entered
+//  by each user INSIDE the website and synced to their private
+//  Firebase document, so it follows them across devices.
 // ============================================================
 
 export const firebaseConfig = {

@@ -37,7 +37,7 @@ async function rpc(token, endpoint, body) {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (res.status === 401) throw new Error("Dropbox token is invalid or expired — generate a fresh one.");
+  if (res.status === 401) throw new Error("Dropbox token is invalid or expired. Generate a fresh one.");
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Dropbox error ${res.status}. ${text.slice(0, 120)}`);

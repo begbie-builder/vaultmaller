@@ -23,8 +23,8 @@ Every account is completely separate and private.
 
 **Supported sources:** Local Files (100% in-browser), Cloudinary (no tagging
 required), Google Drive, Dropbox, MEGA *(beta)* — with OneDrive, S3/R2 and
-Direct Links scaffolded. Keys are entered in the website and stored only in
-your own browser.
+Direct Links scaffolded. Keys are entered in the website and sync privately
+with your account, so your vault follows you to any device.
 
 It's a **no-build static website**: plain HTML, CSS, and JavaScript. That makes
 it dead simple to host for free on **Cloudflare Pages** with **Firebase** as the
@@ -38,7 +38,7 @@ Follow these steps **in order**. Every step tells you exactly where to click.
 Total time: about 20–30 minutes. You do **not** need to know how to code.
 
 Things you'll create (all free):
-1. A **Firebase** project (handles logins only — no database needed)
+1. A **Firebase** project (logins + a tiny private database that syncs your settings across devices)
 2. A **Cloudinary** account (your 25 GB of media)
 3. *(Optional)* a **Google** OAuth key (to show Google Drive)
 4. A **Cloudflare Pages** site (puts your vault online)
@@ -64,18 +64,26 @@ Things you'll create (all free):
 > scenes it quietly turns `yourname` into `yourname@vaultmall.app` so Firebase is
 > happy. You never see this — you just type a username.
 
-> That's the only Firebase feature Vaultmall uses — just logins. There's **no
-> database to create and no rules to configure.** Everything each user connects
-> (Cloudinary, Google Drive, folders…) is entered inside the website and saved
-> privately in that user's own browser.
+### 1c. Create the sync database
+Everything a user connects (Cloudinary, Drive, TMDb keys, albums, profile photo,
+theme) is saved in one private document per user, so it follows them to any
+device they sign into.
+1. Left menu → **Build → Firestore Database**.
+2. Click **Create database** → **Start in production mode** → pick a location → **Enable**.
 
-### 1c. Get your Firebase keys
+### 1d. Publish the security rules (important)
+This is what keeps every user's synced data private to them.
+1. **Firestore Database → Rules** tab.
+2. Delete what's in the box, paste the entire contents of this project's
+   **`firestore.rules`** file, and click **Publish**.
+
+### 1e. Get your Firebase keys
 1. Click the **gear icon ⚙️** (top-left, next to "Project Overview") → **Project settings**.
 2. Scroll down to **Your apps**. Click the **</> (web)** icon.
 3. Nickname it `vaultmall-web`. **Do NOT** check "Firebase Hosting". Click **Register app**.
 4. You'll see a code block with `const firebaseConfig = { ... }`. **Keep this tab open.**
 
-### 1d. Paste the keys into Vaultmall
+### 1f. Paste the keys into Vaultmall
 1. In this project, open the file **`js/firebase-config.js`**.
 2. Replace every `PASTE_...` value with the matching value from Firebase. You only
    need these four — it should end up looking like:
@@ -115,7 +123,7 @@ You do **not** put these in any file. Once Vaultmall is running (Steps 4–5):
 1. Sign in → **Add storage → Cloudinary**.
 2. Paste your **Cloud name**, **API Key**, and **API Secret**. Leave *Folder* blank
    to show everything (or type a folder to show just that one). Click **Connect**.
-3. That's it — all your media appears. The three values stay in your own browser.
+3. That's it — all your media appears. The values sync privately with your account.
 
 > 🔐 **Why a helper function?** Cloudinary's "list everything" API can't be called
 > safely from a plain web page, so the request goes to a small function on your own
@@ -148,7 +156,7 @@ You do **not** put these in any file. Once Vaultmall is running (Steps 4–5):
 You do **not** put this in any file. Once Vaultmall is running:
 1. Sign in → **Add storage → Google Drive**.
 2. Paste your **Client ID** into the box and click **Connect Google Drive**.
-3. It's saved privately in your own browser and Google asks you to approve read-only access.
+3. It syncs privately with your account, and Google asks you to approve read-only access.
 
 > Because each person brings their own Client ID, remember to add the site's URL
 > (localhost for testing, and your `pages.dev` URL once live) to that Client's
@@ -267,8 +275,11 @@ origins → Add** your `https://vaultmall.pages.dev` URL. Save.
 - Connect, reload, or manage every storage service; the unified-library bar
   shows how your collection splits across them.
 
-**Profile photo:** click your avatar (top right) to upload one — it's cropped
-square and stored only in your browser. Alt-click removes it.
+**Profile photo:** click your avatar (top right) to upload one; it's cropped
+square and synced with your account. Alt-click removes it.
+
+**Theme:** Sources page, top right. Dark and Light, defaulting to Dark. Films
+stays cinematic either way.
 
 > After a reload, **Local Files** and **Google Drive** show a *Reconnect* button.
 > That's on purpose — browsers require one click before granting folder access or
@@ -308,10 +319,11 @@ Links**. (Local, Cloudinary, Google Drive, Dropbox, and MEGA are fully wired.)
 
 - **Logins** are handled entirely by **Firebase Authentication**. Vaultmall never
   sees or stores your password.
-- **The services you connect are entered inside the website — never in the code —
-  and saved only in your own browser** (localStorage), namespaced to your login.
-  They never travel to a server, so one user can never reach another's. Sign out,
-  or use a different device/browser, and those connections aren't there.
+- **The services you connect are entered inside the website, never in the code.**
+  They're cached in your browser and synced to a private Firestore document that
+  only your signed-in account can read or write (that's what `firestore.rules`
+  enforces), so your vault follows you across devices without ever being visible
+  to anyone else.
 - **Local Files never leave your machine** — the browser reads them directly and
   they're shown from your own device.
 - **Cloudinary** key/secret stay in your browser and are used only by *your own*
@@ -323,10 +335,8 @@ Links**. (Local, Cloudinary, Google Drive, Dropbox, and MEGA are fully wired.)
 - **MEGA** stays end-to-end encrypted: files are decrypted **in your browser** from
   the key in the share link, and nothing is re-uploaded anywhere.
 
-> ⚖️ **Trade-off to know:** because connections live in your browser, they don't
-> sync across devices and are cleared if you wipe browser data. Want them to
-> follow your account everywhere instead? That's a one-file change — ask and it
-> can be switched to sync privately through your Firebase account.
+> Clearing browser data only clears the local cache; everything comes back from
+> your account the next time you sign in.
 
 ---
 
@@ -345,7 +355,7 @@ Links**. (Local, Cloudinary, Google Drive, Dropbox, and MEGA are fully wired.)
 | MEGA won't load | Make sure the share link **includes the decryption key**, and keep folders modest (everything decrypts in-browser). |
 | Films aren't getting posters/ratings | Add your TMDb key under Sources → Metadata engine. If a file is misidentified, open it and hit **Fix match**. |
 | A home video ended up in Films | Open it → **Not a film → Photos**. (Anything named with a year or SxxExx is treated as a film by default.) |
-| My connections vanished after clearing browser data | Expected — connections live in your browser's localStorage. Just reconnect (or ask to enable account sync). |
+| Settings don't sync across devices | Create the Firestore database and publish `firestore.rules` (Steps 1c–1d). |
 
 ---
 

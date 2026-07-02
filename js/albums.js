@@ -61,3 +61,8 @@ export function removeFromAlbum(uid, albumId, itemIds) {
   if (a) a.itemIds = a.itemIds.filter((id) => !itemIds.includes(id));
   return persist(uid, albums);
 }
+
+// Replace the local cache with the account's synced copy.
+export function hydrate(uid, albums) {
+  if (Array.isArray(albums)) persist(uid, albums);
+}

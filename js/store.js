@@ -29,3 +29,10 @@ export function removeConnection(uid, providerId) {
   delete all[providerId];
   localStorage.setItem(KEY(uid), JSON.stringify(all));
 }
+
+// Replace the local cache with the account's synced copy.
+export function hydrate(uid, connections) {
+  if (connections && typeof connections === "object") {
+    localStorage.setItem(KEY(uid), JSON.stringify(connections));
+  }
+}

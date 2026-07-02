@@ -47,7 +47,40 @@ const state = {
   meta: { tmdb: "", omdb: "" },
 };
 
-// Per-user profile photo — a small data-URL kept in the browser.
+// ---- Account sync ----
+// Everything personal (connections, keys, matches, albums, avatar,
+// theme) lives in one private Firestore doc so it follows the account
+// across devices. localStorage stays the fast local cache; writes get
+// debounced up to the cloud.
+let syncTimer = null;
+function pushSync() {
+  if (!FB || !state.user || typeof FB.saveUserData !== "function") return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    FB.saveUserData(state.user.uid, {
+      username: state.profile.username,
+      connections: state.profile.connections || {},
+      meta: state.meta,
+      films: state.films.store,
+      albums: state.albums,
+      avatar: localStorage.getItem(avatarKey(state.user.uid)) || null,
+    }).catch(() => {}); // offline or rules not published yet: local still works
+  }, 900);
+}
+
+// ---- Theme ----
+function applyTheme(theme) {
+  const t = theme === "light" ? "light" : "dark";
+  document.body.dataset.theme = t;
+  localStorage.setItem("vaultmall:theme", t);
+  const sw = $("#theme-mode");
+  if (sw) {
+    $$(".sw-opt", sw).forEach((o) => o.classList.toggle("is-active", o.dataset.mode === t));
+    if (sw._position) requestAnimationFrame(sw._position);
+  }
+}
+
+// Per-user profile photo, a small data-URL cached in the browser.
 const avatarKey = (uid) => `vaultmall:avatar:${uid}`;
 
 function renderAvatar() {
@@ -70,6 +103,7 @@ function wireAvatar() {
     if (e.altKey) {
       localStorage.removeItem(avatarKey(state.user.uid));
       renderAvatar();
+      pushSync();
       toast("Profile photo removed", "", "ok");
       return;
     }
@@ -91,6 +125,7 @@ function wireAvatar() {
         c.getContext("2d").drawImage(im, (im.width - side) / 2, (im.height - side) / 2, side, side, 0, 0, S, S);
         localStorage.setItem(avatarKey(state.user.uid), c.toDataURL("image/jpeg", 0.85));
         renderAvatar();
+        pushSync();
         toast("Profile photo updated", "", "ok");
       };
       im.onerror = () => toast("Couldn't read that image", "", "err");
@@ -112,6 +147,7 @@ function saveMeta(uid, meta) { localStorage.setItem(metaKey(uid), JSON.stringify
 //  Boot
 // ============================================================
 window.addEventListener("DOMContentLoaded", () => {
+  applyTheme(localStorage.getItem("vaultmall:theme") || "dark");
   setTimeout(() => $("#splash").classList.add("gone"), 950);
   setTimeout(() => $("#splash").classList.add("hidden"), 1600);
 
@@ -147,10 +183,20 @@ async function bootFirebase() {
   FB.watchAuth(async (user) => {
     if (user) {
       state.user = user;
+      // Pull the account's synced copy first; it wins over this browser.
+      try {
+        const remote = (await FB.loadUserData(user.uid)) || {};
+        if (remote.connections) store.hydrate(user.uid, remote.connections);
+        if (remote.albums) albums.hydrate(user.uid, remote.albums);
+        if (remote.films) F.saveFilmStore(user.uid, remote.films);
+        if (remote.meta) saveMeta(user.uid, remote.meta);
+        if (remote.avatar) localStorage.setItem(avatarKey(user.uid), remote.avatar);
+      } catch { /* no database yet or offline: run on the local cache */ }
       state.profile = { username: FB.usernameOf(user), connections: store.loadConnections(user.uid) };
       state.albums = albums.loadAlbums(user.uid);
       state.films.store = F.loadFilmStore(user.uid);
       state.meta = loadMeta(user.uid);
+      if (state.meta.theme) applyTheme(state.meta.theme);
       enterApp();
     } else {
       state.user = null;
@@ -267,11 +313,19 @@ function wireAppUI() {
     }
   });
 
+  // Theme switch (Sources page)
+  wireSwitch($("#theme-mode"), (v) => {
+    applyTheme(v);
+    state.meta.theme = v;
+    if (state.user) { saveMeta(state.user.uid, state.meta); pushSync(); }
+  });
+
   // Metadata engine form
   $("#meta-form").addEventListener("submit", (e) => {
     e.preventDefault();
     state.meta = { tmdb: $("#tmdb-key").value.trim(), omdb: $("#omdb-key").value.trim() };
     saveMeta(state.user.uid, state.meta);
+    pushSync();
     toast("Metadata keys saved", state.meta.tmdb ? "Films will now identify themselves." : "TMDb key removed.", "ok");
   });
 
@@ -523,6 +577,7 @@ function renderAlbumsStrip(strip) {
     if (!name) return;
     albums.createAlbum(state.user.uid, name);
     state.albums = albums.loadAlbums(state.user.uid);
+    pushSync();
     renderPhotos();
   });
   strip.appendChild(add);
@@ -536,6 +591,7 @@ function renderAlbumTools(feed, album) {
     if (!name) return;
     albums.renameAlbum(state.user.uid, album.id, name);
     state.albums = albums.loadAlbums(state.user.uid);
+    pushSync();
     renderPhotos();
   });
   const del = el("button", "btn btn-danger", "Delete album");
@@ -543,6 +599,7 @@ function renderAlbumTools(feed, album) {
     if (!confirm(`Delete “${album.name}”? Media itself is untouched.`)) return;
     albums.deleteAlbum(state.user.uid, album.id);
     state.albums = albums.loadAlbums(state.user.uid);
+    pushSync();
     state.photos.albumId = null;
     renderPhotos();
   });
@@ -585,6 +642,7 @@ function openAlbumPicker() {
     b.addEventListener("click", () => {
       albums.addToAlbum(state.user.uid, a.id, [...state.photos.selected]);
       state.albums = albums.loadAlbums(state.user.uid);
+      pushSync();
       toast("Added to album", a.name, "ok");
       exitSelectMode();
     });
@@ -599,6 +657,7 @@ function openAlbumPicker() {
     const a = albums.createAlbum(state.user.uid, input.value);
     albums.addToAlbum(state.user.uid, a.id, [...state.photos.selected]);
     state.albums = albums.loadAlbums(state.user.uid);
+    pushSync();
     toast("Album created", a.name, "ok");
     exitSelectMode();
   });
@@ -650,8 +709,8 @@ function renderFilms() {
   if (!candidates.length) {
     hide("#films-hero"); hide("#films-matchbar");
     $("#films-setup-msg").textContent = Object.keys(state.profile.connections || {}).length
-      ? "No film-looking videos yet. Files named like “Title (2019).mkv” or shows in Season folders land here automatically — or open any video in Photos and send it to Films."
-      : "Connect a source, then add your free TMDb key — your video files become a film & TV library with posters, ratings and cast.";
+      ? "Nothing film-shaped yet. Name things like Title (2019).mkv or keep shows in Season folders and they will find their own way here."
+      : "Connect a source, then add your free TMDb key. Your pile of videos becomes an actual library.";
     show("#films-setup");
     return;
   }
@@ -661,7 +720,7 @@ function renderFilms() {
 
   if (!state.meta.tmdb) {
     hide("#films-hero");
-    const note = el("div", "matchbar", `<span class="mono">ADD A FREE TMDB KEY IN SOURCES TO IDENTIFY THESE ${enriched.length} TITLES — POSTERS, RATINGS, CAST.</span>`);
+    const note = el("div", "matchbar", `<span class="mono">ADD A FREE TMDB KEY IN SOURCES AND THESE ${enriched.length} TITLES GET POSTERS, RATINGS AND CAST.</span>`);
     rows.appendChild(note);
   } else {
     autoMatch(enriched);
@@ -748,7 +807,7 @@ function buildPoster(entry, i, isUnmatched) {
     <div class="poster-art">${art}</div>
     <div class="poster-strip">
       <span class="poster-name">${escapeHtml(title)}</span>
-      <span class="poster-sub"><span>${year || "—"}</span>${right}</span>
+      <span class="poster-sub"><span>${year || "·"}</span>${right}</span>
     </div>`;
   c.addEventListener("click", () => (match ? openFilmDetail(entry, match) : openMatchModal(entry)));
   return c;
@@ -771,7 +830,7 @@ function renderHero(entries) {
     const slide = el("div", "hero-slide");
     slide.innerHTML = `
       <div class="hero-copy">
-        <span class="hero-kicker mono">FEATURED — ${escapeHtml(entry.series ? "SERIES" : (match.genres || [])[0] || "FILM").toUpperCase()}</span>
+        <span class="hero-kicker mono">FEATURED · ${escapeHtml(entry.series ? "SERIES" : (match.genres || [])[0] || "FILM").toUpperCase()}</span>
         <h3 class="hero-title">${escapeHtml(match.title)}</h3>
         <div class="hero-meta">
           <span>${match.year || ""}</span><span class="sep"></span>
@@ -819,7 +878,7 @@ async function autoMatch(entries) {
   show("#films-matchbar");
   let done = 0;
   for (const entry of todo) {
-    $("#matchbar-label").textContent = `IDENTIFYING ${done + 1}/${todo.length} — ${(entry.title || "").slice(0, 40)}`;
+    $("#matchbar-label").textContent = `IDENTIFYING ${done + 1}/${todo.length} · ${(entry.title || "").slice(0, 40)}`;
     $("#matchbar-fill").style.width = `${Math.round((done / todo.length) * 100)}%`;
     try {
       let hits = entry.title ? await F.searchTitles(state.meta.tmdb, entry.title, entry.year) : [];
@@ -838,6 +897,7 @@ async function autoMatch(entries) {
     }
     done++;
     F.saveFilmStore(state.user.uid, fs);
+    pushSync();
   }
   $("#matchbar-fill").style.width = "100%";
   state.films.matching = false;
@@ -849,9 +909,9 @@ function openFilmDetail(entry, match) {
   const item = entry.series ? entry.episodes[0].item : entry.item;
   const sheet = $("#filmsheet");
   const scores = [
-    { cls: "tmdb", label: "TMDB", value: match.vote ? match.vote.toFixed(1) : "—" },
-    { cls: "imdb", label: "IMDB", value: match.imdb || "—" },
-    { cls: "rt", label: "TOMATOES", value: match.rt || "—" },
+    { cls: "tmdb", label: "TMDB", value: match.vote ? match.vote.toFixed(1) : "n/a" },
+    { cls: "imdb", label: "IMDB", value: match.imdb || "n/a" },
+    { cls: "rt", label: "TOMATOES", value: match.rt || "n/a" },
   ];
   sheet.innerHTML = `
     <div class="fs-backdrop${match.backdrop ? "" : " no-art"}">
@@ -876,7 +936,7 @@ function openFilmDetail(entry, match) {
         ${entry.series ? `<div class="fs-episodes"></div>` : ""}
         <div class="fs-file">${entry.series
           ? `${entry.episodes.length} FILES · ${escapeHtml((getProvider(item.source) || {}).name || item.source)}`
-          : `SOURCE FILE — ${escapeHtml(item.title)} · ${escapeHtml((getProvider(item.source) || {}).name || item.source)}`}</div>
+          : `SOURCE FILE · ${escapeHtml(item.title)} · ${escapeHtml((getProvider(item.source) || {}).name || item.source)}`}</div>
         <div class="fs-actions"></div>
       </div>
     </div>`;
@@ -912,6 +972,7 @@ function openFilmDetail(entry, match) {
     const ids = entry.series ? entry.episodes.map((e) => e.item.id) : [item.id];
     state.films.store.exclude.push(...ids);
     F.saveFilmStore(state.user.uid, state.films.store);
+    pushSync();
     hide("#film-modal");
     toast("Moved to Photos", match.title, "ok");
     refreshEnv();
@@ -931,7 +992,7 @@ let matchTarget = null; // a library entry: { key, title, series?, episodes?, it
 function openMatchModal(entry) {
   matchTarget = entry;
   $("#match-filename").textContent = entry.series
-    ? `${entry.title} — ${entry.episodes.length} episodes`
+    ? `${entry.title} · ${entry.episodes.length} episodes`
     : (entry.item ? entry.item.title : entry.title);
   $("#match-query").value = entry.title || "";
   $("#match-results").innerHTML = "";
@@ -960,7 +1021,7 @@ async function runMatchSearch() {
     hits.slice(0, 8).forEach((h) => {
       const row = el("button", "match-hit", `
         ${h.poster ? `<img src="${F.posterUrl(h.poster, 92)}" alt="">` : `<span class="mh-noart">${escapeHtml(h.title.slice(0, 1))}</span>`}
-        <span><span class="mh-title">${escapeHtml(h.title)}</span><br><span class="mh-sub">${h.year || "—"} · ${h.kind === "tv" ? "SERIES" : "FILM"} · ★ ${(h.vote || 0).toFixed(1)}</span></span>
+        <span><span class="mh-title">${escapeHtml(h.title)}</span><br><span class="mh-sub">${h.year || "?"} · ${h.kind === "tv" ? "SERIES" : "FILM"} · ★ ${(h.vote || 0).toFixed(1)}</span></span>
         <span class="mh-go">Link →</span>`);
       row.addEventListener("click", async () => {
         row.querySelector(".mh-go").textContent = "Linking…";
@@ -976,6 +1037,7 @@ async function runMatchSearch() {
           }
           fs.exclude = fs.exclude.filter((x) => !ids.includes(x));
           F.saveFilmStore(state.user.uid, fs);
+          pushSync();
           hide("#match-modal");
           toast("Matched", detail.title, "ok");
           refreshEnv();
@@ -1016,10 +1078,10 @@ function renderSources() {
       const seg = el("span", "lib-seg");
       seg.style.width = `${(n / total) * 100}%`;
       seg.style.background = (BRAND[p.id] || {}).color || "#888";
-      seg.title = `${p.name} — ${n}`;
+      seg.title = `${p.name} · ${n}`;
       bar.appendChild(seg);
       legend.appendChild(el("span", "lib-key",
-        `<span class="swatch" style="background:${(BRAND[p.id] || {}).color || "#888"}"></span>${p.name.toUpperCase()} — ${n}`));
+        `<span class="swatch" style="background:${(BRAND[p.id] || {}).color || "#888"}"></span>${p.name.toUpperCase()} · ${n}`));
     });
     strip.append(bar, legend);
   } else {
@@ -1076,7 +1138,7 @@ function renderSources() {
         actions.appendChild(cn);
       }
     } else {
-      actions.appendChild(el("span", "act", "—"));
+      actions.appendChild(el("span", "act", "·"));
     }
     grid.appendChild(card);
     requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add("in")));
@@ -1105,7 +1167,7 @@ function openConfig(providerId) {
 function renderLocalConfig(p, body, existing) {
   const connected = !!existing.folderName;
   body.appendChild(el("div", "config-note",
-    `<strong>100% private.</strong> Vaultmall reads the folder you choose directly in your browser. Nothing is uploaded anywhere.`));
+    `Reads a folder straight off this computer. Nothing gets uploaded anywhere, which is rather the point.`));
   body.appendChild(el("p", "config-hint",
     connected ? `Connected folder: <code>${escapeHtml(existing.folderName)}</code>` : "No folder chosen yet."));
   const actions = el("div", "config-actions");
@@ -1115,6 +1177,7 @@ function renderLocalConfig(p, body, existing) {
       const folderName = await p.module.pickFolder(state.user.uid);
       store.saveConnection(state.user.uid, "local", { folderName });
       state.profile.connections.local = { folderName };
+      pushSync();
       toast("Folder connected", folderName, "ok");
       hide("#config-modal");
       await loadSource("local");
@@ -1144,7 +1207,7 @@ function renderOAuthConfig(p, body, existing) {
   field.appendChild(input);
   body.appendChild(field);
   body.appendChild(el("div", "config-note",
-    `<strong>Read-only, and yours alone.</strong> The Client ID stays in your browser; the access token lives in memory for this session only. See README Step 3 — add this site's URL to the Client's <em>Authorized JavaScript origins</em>.`));
+    `A read-only look at your Drive photos and videos. Paste your Client ID and let Google run its little consent ceremony. Setup steps are in the README if Google is being Google.`));
   const actions = el("div", "config-actions");
   const btn = el("button", "btn btn-accent", connected ? "Reconnect Google Drive" : "Connect Google Drive");
   btn.addEventListener("click", async () => {
@@ -1157,6 +1220,7 @@ function renderOAuthConfig(p, body, existing) {
       const cfg = { connected: true, clientId };
       store.saveConnection(state.user.uid, "gdrive", cfg);
       state.profile.connections.gdrive = cfg;
+      pushSync();
       toast("Google Drive connected", "", "ok");
       hide("#config-modal");
       await loadSource("gdrive");
@@ -1193,9 +1257,9 @@ function renderFieldConfig(p, body, existing) {
     form.appendChild(wrap);
   });
   const NOTES = {
-    cloudinary: `<strong>Shows everything — no tags needed.</strong> Copy your API Key and Secret from the Cloudinary dashboard. They stay in your browser and are used only by your own site's serverless helper. (Runs on your deployed Cloudflare site, or locally via <code>npx wrangler pages dev</code>.)`,
-    dropbox: `<strong>Bring your own token.</strong> Create an app in the Dropbox App Console with <code>files.metadata.read</code> + <code>files.content.read</code>, generate an access token, paste it here.`,
-    mega: `<strong>Beta.</strong> Paste a MEGA shared-folder link (with its key). Files decrypt in your browser when shown — best for smaller folders.`,
+    cloudinary: `Shows everything in your Cloudinary account. No tagging homework. Grab the three values from your dashboard and paste them in. Only works on the deployed site, so no panic if it sulks on localhost.`,
+    dropbox: `Shows the photos and videos from your Dropbox. Make an app in their App Console, give it the two read permissions, generate a token, paste it here. Dropbox makes you earn it.`,
+    mega: `Reads a MEGA shared folder. Paste the link, the one with the key in it. Best for smaller folders unless you enjoy watching progress bars.`,
   };
   if (NOTES[p.id]) form.appendChild(el("div", "config-note", NOTES[p.id]));
   const actions = el("div", "config-actions");
@@ -1219,6 +1283,7 @@ function renderFieldConfig(p, body, existing) {
       const items = await p.module.list(config);
       store.saveConnection(state.user.uid, p.id, config);
       state.profile.connections[p.id] = config;
+      pushSync();
       state.bySource[p.id] = items || [];
       delete state.needsReconnect[p.id];
       rebuildMedia();
@@ -1229,6 +1294,7 @@ function renderFieldConfig(p, body, existing) {
       if (err && err.soft) {
         store.saveConnection(state.user.uid, p.id, config);
         state.profile.connections[p.id] = config;
+        pushSync();
         state.needsReconnect[p.id] = true;
         toast(`${p.name} saved`, err.message, "");
         hide("#config-modal");
@@ -1246,6 +1312,7 @@ function renderFieldConfig(p, body, existing) {
 function disconnectProvider(id) {
   store.removeConnection(state.user.uid, id);
   delete state.profile.connections[id];
+  pushSync();
   delete state.bySource[id];
   delete state.needsReconnect[id];
   rebuildMedia();
@@ -1278,7 +1345,7 @@ async function renderLightbox() {
   const m = items[lightboxIndex];
   if (!m) return;
   const stage = $("#lightbox-stage");
-  $("#lightbox-caption").textContent = `${m.title} — ${(getProvider(m.source) || {}).name || m.source}`;
+  $("#lightbox-caption").textContent = `${m.title} · ${(getProvider(m.source) || {}).name || m.source}`;
 
   if (!m.fullUrl && typeof m.resolveFull === "function") {
     stage.innerHTML = `<div class="lb-loading">DECRYPTING…</div>`;

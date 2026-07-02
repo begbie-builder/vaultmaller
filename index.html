@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Vaultmall — a dual-core media hub: your personal photo vault and your own cinematic library." />
+  <meta name="description" content="Vaultmall. Your personal photo vault and your own private cinema, in one place." />
   <title>Vaultmall</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,7 +11,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
-<body data-env="photos">
+<body data-env="photos" data-theme="dark">
 
   <!-- ================= SPLASH ================= -->
   <div id="splash" class="splash">
@@ -24,14 +24,14 @@
   <!-- ================= AUTH ================= -->
   <main id="auth-screen" class="auth hidden">
     <section class="auth-left">
-      <div class="auth-brandline mono rv" style="--d:0">EST. 2026 — A PRIVATE MEDIA HOUSE</div>
+      <div class="auth-brandline mono rv" style="--d:0">EST. 2026 · A PRIVATE MEDIA HOUSE</div>
       <h1 class="auth-word">
         <span class="rv" style="--d:1">Vault</span><span class="rv accent-text" style="--d:2">mall</span>
       </h1>
       <div class="auth-manifesto">
         <p class="rv" style="--d:3"><span class="idx mono">01</span>Your photographs, shelved like a printed archive.</p>
         <p class="rv" style="--d:4"><span class="idx mono">02</span>Your films, staged like a private cinema.</p>
-        <p class="rv" style="--d:5"><span class="idx mono">03</span>Every source yours alone. Keys never leave your browser.</p>
+        <p class="rv" style="--d:5"><span class="idx mono">03</span>Every source yours alone, on every device you sign into.</p>
       </div>
       <div class="auth-foot mono rv" style="--d:6">PHOTOS / FILMS / SOURCES</div>
     </section>
@@ -155,7 +155,7 @@
 
       <div id="films-setup" class="bigempty hidden">
         <div class="bigempty-word">CINEMA</div>
-        <p id="films-setup-msg">Add your free TMDb key in Sources and your video files become a film library — posters, ratings, cast.</p>
+        <p id="films-setup-msg">Add your free TMDb key in Sources and your pile of videos becomes an actual library.</p>
         <button class="btn btn-accent" data-goto="sources">Open Sources →</button>
       </div>
     </main>
@@ -166,6 +166,13 @@
         <div>
           <div class="kicker mono">MULTI-LINK CLOUD MANAGEMENT</div>
           <h2 class="env-title">Sources</h2>
+        </div>
+        <div class="env-head-right">
+          <div class="switch" id="theme-mode" title="Theme">
+            <button class="sw-opt is-active" data-mode="dark">Dark</button>
+            <button class="sw-opt" data-mode="light">Light</button>
+            <span class="sw-ink"></span>
+          </div>
         </div>
       </div>
 
@@ -180,14 +187,14 @@
           </div>
           <span class="engine-mark mono">TMDb</span>
         </div>
-        <p class="meta-engine-sub">Vaultmall reads your video filenames like a librarian — scrubbing release junk, guessing title and year — then confirms against TMDb. Keys stay in your browser.</p>
+        <p class="meta-engine-sub">Turns your questionably named video files into a proper library with posters, ratings and cast. Works better than your file naming deserves.</p>
         <form id="meta-form" class="meta-form">
           <label class="field">
-            <span class="mono">TMDB API KEY (FREE — themoviedb.org)</span>
+            <span class="mono">TMDB API KEY (FREE, FROM THEMOVIEDB.ORG)</span>
             <input id="tmdb-key" type="password" placeholder="paste key" />
           </label>
           <label class="field">
-            <span class="mono">OMDB KEY (OPTIONAL — ADDS IMDB + ROTTEN TOMATOES)</span>
+            <span class="mono">OMDB KEY (OPTIONAL, ADDS IMDB AND ROTTEN TOMATOES)</span>
             <input id="omdb-key" type="password" placeholder="paste key" />
           </label>
           <button class="btn btn-ink" type="submit">Save keys</button>
@@ -232,7 +239,7 @@
       <div class="sheet-body">
         <p class="sheet-sub">File: <code id="match-filename"></code></p>
         <form id="match-form" class="match-form">
-          <input id="match-query" type="text" placeholder="Search TMDb — title, or paste a TMDb ID" />
+          <input id="match-query" type="text" placeholder="Search TMDb by title, or paste an ID" />
           <button class="btn btn-ink" type="submit">Search</button>
         </form>
         <div id="match-results" class="match-results"></div>

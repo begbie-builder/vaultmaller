@@ -15,7 +15,7 @@ export const PROVIDERS = {
   local: {
     id: "local",
     name: "Local Files",
-    desc: "Read a folder on this computer",
+    desc: "A folder on this computer",
     icon: "🖥",
     color: "#6366f1",
     kind: "device", // lives on this device, not restorable from the cloud alone
@@ -25,7 +25,7 @@ export const PROVIDERS = {
   cloudinary: {
     id: "cloudinary",
     name: "Cloudinary",
-    desc: "All your media — no tags needed",
+    desc: "Your whole Cloudinary library",
     icon: "☁",
     color: "#3448c5",
     kind: "cloud",
@@ -41,7 +41,7 @@ export const PROVIDERS = {
   gdrive: {
     id: "gdrive",
     name: "Google Drive",
-    desc: "Your Drive photos & videos",
+    desc: "Your Drive photos and videos",
     icon: "▲",
     color: "#1a73e8",
     kind: "oauth",
@@ -52,7 +52,7 @@ export const PROVIDERS = {
   dropbox: {
     id: "dropbox",
     name: "Dropbox",
-    desc: "Media from your Dropbox",
+    desc: "Your Dropbox media",
     icon: "◇",
     color: "#0061ff",
     kind: "cloud",
@@ -66,7 +66,7 @@ export const PROVIDERS = {
   mega: {
     id: "mega",
     name: "MEGA",
-    desc: "A MEGA shared folder link",
+    desc: "A MEGA shared folder",
     icon: "◉",
     color: "#d9272e",
     kind: "encrypted", // decrypts in-browser; loaded on click, not on page load

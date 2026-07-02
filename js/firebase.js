@@ -1,9 +1,8 @@
 // ============================================================
-//  Vaultmall — Firebase bootstrap (Auth only)
-//  We use Firebase ONLY for username/password logins. There is
-//  no database here: each user's connected storage services are
-//  saved in their own browser (see store.js). Loaded straight
-//  from the CDN — no build step.
+//  Vaultmall — Firebase bootstrap (Auth + sync)
+//  Auth handles logins. Firestore holds one private document per
+//  user so connected services, keys and settings follow the
+//  account across devices. Loaded straight from the CDN.
 // ============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -13,10 +12,17 @@ import {
   signOut,
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import { firebaseConfig, USERNAME_EMAIL_DOMAIN, isConfigured } from "./firebase-config.js";
 
 let auth = null;
+let db = null;
 
 export function initFirebase() {
   if (!isConfigured()) {
@@ -26,7 +32,18 @@ export function initFirebase() {
   }
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
-  return { auth };
+  db = getFirestore(app);
+  return { auth, db };
+}
+
+// ---- Per-user sync document (users/{uid}) ----
+export async function loadUserData(uid) {
+  const snap = await getDoc(doc(db, "users", uid));
+  return snap.exists() ? snap.data() : {};
+}
+
+export async function saveUserData(uid, partial) {
+  await setDoc(doc(db, "users", uid), { ...partial, updatedAt: Date.now() }, { merge: true });
 }
 
 // Firebase Auth wants an email. We turn a username into a stable,
