@@ -2,19 +2,27 @@
 
 **Your media. Every service. One beautiful, private vault.**
 
-Vaultmall is a gorgeous, flat, minimal front-end for all your media. It reads
-folders straight off your computer, pulls in your **Cloudinary** library, and
-syncs **Google Drive**, **Dropbox**, and **MEGA** — and is built to add more
-services easily. Every account is completely separate and private — no one's
-media ever mixes with anyone else's.
+Vaultmall is a **dual-core media hub** with a bespoke, editorial design — ink,
+paper, and one signal color; sharp geometry; zero blur, zero glow, zero
+translucency. It reads folders straight off your computer, pulls in your
+**Cloudinary** library, and syncs **Google Drive**, **Dropbox**, and **MEGA**.
+Every account is completely separate and private.
 
-- 🖥️ **Local Files** — view a folder on your own computer, 100% in the browser (nothing is uploaded)
-- ☁️ **Cloudinary** — all your media, no tagging required
-- ▲ **Google Drive** — your Drive photos and videos
-- 📦 **Dropbox** — media from your Dropbox
-- 🔴 **MEGA** *(beta)* — an end-to-end-encrypted shared folder, decrypted in your browser
-- 🔒 **Private by design** — Firebase Auth gates access; every connection you add is stored only in your own browser, never on a server
-- 🎨 **Flat, animated, rounded UI** — no glows, no gradients, just clean color
+**The two cores:**
+
+- 📷 **PHOTOS — the personal vault.** A light, printed-archive feel: strict
+  masonry walls, a timeline grouped by month, albums, and a selection mode.
+- 🎬 **FILMS — the private cinema.** A dark screening room: hero banners,
+  horizontal category rows, TMDb-powered posters, ratings (TMDb / IMDb /
+  Rotten Tomatoes), cast lists — with Jellyfin-style filename matching and a
+  manual "Fix match" override when the guess is wrong.
+- 🔌 **SOURCES — the switchboard.** One dashboard aggregating every storage
+  link into a unified library, with per-service brand marks and live counts.
+
+**Supported sources:** Local Files (100% in-browser), Cloudinary (no tagging
+required), Google Drive, Dropbox, MEGA *(beta)* — with OneDrive, S3/R2 and
+Direct Links scaffolded. Keys are entered in the website and stored only in
+your own browser.
 
 It's a **no-build static website**: plain HTML, CSS, and JavaScript. That makes
 it dead simple to host for free on **Cloudflare Pages** with **Firebase** as the
@@ -235,13 +243,23 @@ origins → Add** your `https://vaultmall.pages.dev` URL. Save.
 
 # 🎬 Using Vaultmall
 
-- **Add storage** — bottom-left sidebar button. Pick a distributor and connect it.
-- **Local Files** — click *Choose a folder*, grant read permission, and your
-  photos/videos appear instantly. Nothing is uploaded; it reads them live.
-- **Sidebar** sorts everything by distributor (Local, Cloudinary, Google Drive…).
-- **Search + filters** (top right) narrow by name or Images/Video.
-- **Click any item** for a full-screen lightbox (arrow keys to move, `Esc` to close).
-- **Theme** — the ◑ button flips dark/light.
+**PHOTOS** (light, archival):
+- **Timeline** groups everything by month; **Albums** are your own named sets.
+- **Select** turns on selection mode — pick tiles, then *Add to album*.
+- Filter by Photos/Videos; **click any tile** for the lightbox (arrows / `Esc`).
+
+**FILMS** (dark, cinematic):
+- Videos named like `Title (2019).mkv` or with `SxxExx` land here automatically.
+- Add a **free TMDb API key** (Sources → *Metadata engine*; get one at
+  themoviedb.org → Settings → API). Vaultmall then identifies each file:
+  poster, backdrop, rating, genres, cast. An **OMDb key** (omdbapi.com) is
+  optional and adds IMDb + Rotten Tomatoes scores.
+- Wrong guess? Open the title → **Fix match** → search TMDb or paste an ID.
+- Not a film at all? **Not a film → Photos** sends it back to the vault.
+
+**SOURCES** (the switchboard):
+- Connect, reload, or manage every storage service; the unified-library bar
+  shows how your collection splits across them.
 
 > After a reload, **Local Files** and **Google Drive** show a *Reconnect* button.
 > That's on purpose — browsers require one click before granting folder access or
@@ -316,6 +334,8 @@ Links**. (Local, Cloudinary, Google Drive, Dropbox, and MEGA are fully wired.)
 | Google Drive won't connect | Paste your Client ID in the app, add your URL to **Authorized JavaScript origins**, and add yourself as a **Test user** (Step 3). |
 | Dropbox says token invalid/expired | Generated tokens are short-lived — generate a fresh one and reconnect. |
 | MEGA won't load | Make sure the share link **includes the decryption key**, and keep folders modest (everything decrypts in-browser). |
+| Films aren't getting posters/ratings | Add your TMDb key under Sources → Metadata engine. If a file is misidentified, open it and hit **Fix match**. |
+| A home video ended up in Films | Open it → **Not a film → Photos**. (Anything named with a year or SxxExx is treated as a film by default.) |
 | My connections vanished after clearing browser data | Expected — connections live in your browser's localStorage. Just reconnect (or ask to enable account sync). |
 
 ---

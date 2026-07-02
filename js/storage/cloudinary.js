@@ -28,6 +28,7 @@ function toItem(cloud, r) {
     fullUrl: full(cloud, type, r.public_id, fmt),
     source: "cloudinary",
     sub: "Cloudinary",
+    date: r.created_at ? Date.parse(r.created_at) : 0,
   };
 }
 

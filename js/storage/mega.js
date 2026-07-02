@@ -73,6 +73,7 @@ export async function list(config) {
       fullUrl: "",
       source: "mega",
       sub: "MEGA",
+      date: f.timestamp ? f.timestamp * 1000 : 0,
     };
 
     if (type === "image" && eagerImages < EAGER_IMAGE_CAP) {

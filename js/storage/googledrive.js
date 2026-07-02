@@ -56,7 +56,7 @@ async function ensureToken(clientId) {
 export async function list(config = {}) {
   const token = await ensureToken(config.clientId);
   const q = encodeURIComponent("(mimeType contains 'image/' or mimeType contains 'video/') and trashed = false");
-  const fields = encodeURIComponent("files(id,name,mimeType,thumbnailLink,webContentLink)");
+  const fields = encodeURIComponent("files(id,name,mimeType,thumbnailLink,webContentLink,modifiedTime)");
   const items = [];
   let pageToken = "";
 
@@ -79,6 +79,7 @@ export async function list(config = {}) {
         fullUrl: `https://drive.google.com/file/d/${f.id}/view`,
         source: "gdrive",
         sub: "Google Drive",
+        date: f.modifiedTime ? Date.parse(f.modifiedTime) : 0,
         external: !isImage, // videos open in Drive rather than inline
       });
     }

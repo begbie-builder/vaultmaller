@@ -73,6 +73,7 @@ export async function list(config) {
       fullUrl: link.link,
       source: "dropbox",
       sub: "Dropbox",
+      date: e.server_modified ? Date.parse(e.server_modified) : 0,
     };
   });
 

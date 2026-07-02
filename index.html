@@ -1,165 +1,249 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Vaultmall — a beautiful, private media vault for all your storage." />
+  <meta name="description" content="Vaultmall — a dual-core media hub: your personal photo vault and your own cinematic library." />
   <title>Vaultmall</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,900;1,9..144,600&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
-<body>
-  <!-- ============ LOADING SPLASH ============ -->
+<body data-env="photos">
+
+  <!-- ================= SPLASH ================= -->
   <div id="splash" class="splash">
-    <div class="splash-logo">
-      <div class="logo-mark"></div>
-      <span>Vaultmall</span>
+    <div class="splash-word">
+      <span class="sw" style="--d:0">V</span><span class="sw" style="--d:1">A</span><span class="sw" style="--d:2">U</span><span class="sw" style="--d:3">L</span><span class="sw" style="--d:4">T</span><span class="sw" style="--d:5">M</span><span class="sw" style="--d:6">A</span><span class="sw" style="--d:7">L</span><span class="sw" style="--d:8">L</span>
     </div>
+    <div class="splash-rule"></div>
   </div>
 
-  <!-- ============ AUTH SCREEN ============ -->
-  <main id="auth-screen" class="auth-screen hidden">
-    <div class="auth-brand">
-      <div class="logo-mark"></div>
-      <h1>Vaultmall</h1>
-      <p>Your media. Every service. One beautiful vault.</p>
-      <ul class="auth-points">
-        <li><span class="dot dot-a"></span> Read your local folders, privately</li>
-        <li><span class="dot dot-b"></span> Sync Cloudinary, Google Drive &amp; more</li>
-        <li><span class="dot dot-c"></span> Your vault is yours alone — always separate</li>
-      </ul>
-    </div>
-
-    <div class="auth-card">
-      <div class="auth-tabs">
-        <button class="auth-tab is-active" data-mode="login">Sign in</button>
-        <button class="auth-tab" data-mode="signup">Create account</button>
+  <!-- ================= AUTH ================= -->
+  <main id="auth-screen" class="auth hidden">
+    <section class="auth-left">
+      <div class="auth-brandline mono rv" style="--d:0">EST. 2026 — A PRIVATE MEDIA HOUSE</div>
+      <h1 class="auth-word">
+        <span class="rv" style="--d:1">Vault</span><span class="rv accent-text" style="--d:2">mall</span>
+      </h1>
+      <div class="auth-manifesto">
+        <p class="rv" style="--d:3"><span class="idx mono">01</span>Your photographs, shelved like a printed archive.</p>
+        <p class="rv" style="--d:4"><span class="idx mono">02</span>Your films, staged like a private cinema.</p>
+        <p class="rv" style="--d:5"><span class="idx mono">03</span>Every source yours alone. Keys never leave your browser.</p>
       </div>
+      <div class="auth-foot mono rv" style="--d:6">PHOTOS / FILMS / SOURCES</div>
+    </section>
 
-      <form id="auth-form" class="auth-form" autocomplete="off">
-        <label class="field">
-          <span>Username</span>
-          <input id="auth-username" type="text" placeholder="yourname" autocomplete="username" required minlength="3" />
-        </label>
-        <label class="field">
-          <span>Password</span>
-          <input id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password" required minlength="6" />
-        </label>
-        <p id="auth-error" class="auth-error hidden"></p>
-        <button id="auth-submit" type="submit" class="btn btn-primary btn-block">
-          <span class="btn-label">Sign in</span>
-        </button>
-      </form>
-      <p class="auth-fineprint">Your password never leaves Firebase Auth. We never see it.</p>
-    </div>
-  </main>
-
-  <!-- ============ APP SHELL ============ -->
-  <div id="app" class="app hidden">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="sidebar-top">
-        <div class="logo-mark small"></div>
-        <span class="sidebar-brand">Vaultmall</span>
-      </div>
-
-      <nav class="nav" id="distributor-nav">
-        <button class="nav-item is-active" data-view="all">
-          <span class="nav-icon">▦</span> All media
-        </button>
-        <div class="nav-heading">Distributors</div>
-        <!-- distributor buttons injected here -->
-      </nav>
-
-      <div class="sidebar-bottom">
-        <button class="nav-item" id="add-distributor-btn">
-          <span class="nav-icon">＋</span> Add storage
-        </button>
-        <button class="nav-item" id="theme-toggle">
-          <span class="nav-icon">◑</span> Theme
-        </button>
-        <div class="user-chip">
-          <div class="avatar" id="user-avatar">U</div>
-          <div class="user-meta">
-            <span id="user-name" class="user-name">user</span>
-            <button id="logout-btn" class="link-btn">Sign out</button>
-          </div>
+    <section class="auth-right">
+      <div class="auth-panel rv" style="--d:2">
+        <div class="auth-tabs" role="tablist">
+          <button class="auth-tab is-active" data-mode="login">Sign in</button>
+          <button class="auth-tab" data-mode="signup">Create account</button>
+          <span class="auth-tab-ink" aria-hidden="true"></span>
         </div>
-      </div>
-    </aside>
 
-    <!-- Main -->
-    <section class="main">
-      <header class="topbar">
-        <div class="topbar-left">
-          <h2 id="view-title">All media</h2>
-          <span id="view-count" class="count-pill">0 items</span>
-        </div>
-        <div class="topbar-right">
-          <div class="search">
-            <span class="search-icon">⌕</span>
-            <input id="search-input" type="text" placeholder="Search your vault…" />
-          </div>
-          <div class="segmented" id="filter-segmented">
-            <button class="seg is-active" data-filter="all">All</button>
-            <button class="seg" data-filter="image">Images</button>
-            <button class="seg" data-filter="video">Video</button>
-          </div>
-        </div>
-      </header>
-
-      <div id="content" class="content">
-        <!-- Empty state -->
-        <div id="empty-state" class="empty-state">
-          <div class="empty-illustration"></div>
-          <h3>Your vault is waiting</h3>
-          <p>Connect a storage service to see your media here.</p>
-          <button class="btn btn-primary" data-open-add>Add your first storage</button>
-        </div>
-        <!-- Media grid injected here -->
-        <div id="media-grid" class="media-grid hidden"></div>
-        <!-- Skeleton loader -->
-        <div id="skeleton" class="media-grid hidden"></div>
+        <form id="auth-form" class="auth-form" autocomplete="off">
+          <label class="field">
+            <span class="mono">USERNAME</span>
+            <input id="auth-username" type="text" placeholder="yourname" autocomplete="username" required minlength="3" />
+          </label>
+          <label class="field">
+            <span class="mono">PASSWORD</span>
+            <input id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password" required minlength="6" />
+          </label>
+          <p id="auth-error" class="auth-error hidden"></p>
+          <button id="auth-submit" type="submit" class="btn btn-accent btn-block">
+            <span class="btn-label">Sign in</span>
+            <span class="btn-arrow">→</span>
+          </button>
+        </form>
+        <p class="auth-fineprint mono">PASSWORDS LIVE IN FIREBASE AUTH. WE NEVER SEE THEM.</p>
       </div>
     </section>
-  </div>
+  </main>
 
-  <!-- ============ ADD STORAGE MODAL ============ -->
-  <div id="add-modal" class="modal-backdrop hidden">
-    <div class="modal">
-      <div class="modal-head">
-        <h3>Add storage</h3>
-        <button class="icon-btn" data-close-modal>✕</button>
+  <!-- ================= APP ================= -->
+  <div id="app" class="app hidden">
+
+    <header class="topbar">
+      <button class="brand" id="brand-home">Vault<span class="accent-text">mall</span></button>
+
+      <nav class="envnav" id="envnav">
+        <button class="envtab is-active" data-env="photos">Photos</button>
+        <button class="envtab" data-env="films">Films</button>
+        <button class="envtab" data-env="sources">Sources</button>
+        <span class="envink" id="envink" aria-hidden="true"></span>
+      </nav>
+
+      <div class="topbar-right">
+        <div class="search">
+          <input id="search-input" type="text" placeholder="Search" />
+          <span class="search-underline"></span>
+        </div>
+        <div class="userchip">
+          <span id="user-avatar" class="avatar">U</span>
+          <span class="usercol">
+            <span id="user-name" class="username">user</span>
+            <button id="logout-btn" class="signout mono">SIGN OUT</button>
+          </span>
+        </div>
       </div>
-      <p class="modal-sub">Pick a distributor to connect. Each one stays private to your account.</p>
-      <div class="provider-grid" id="provider-grid"><!-- providers injected --></div>
+    </header>
+
+    <!-- ========== PHOTOS ========== -->
+    <main id="env-photos" class="env env-photos">
+      <div class="env-head">
+        <div>
+          <div class="kicker mono">THE PERSONAL VAULT</div>
+          <h2 class="env-title">Photos</h2>
+        </div>
+        <div class="env-head-right">
+          <span id="photos-count" class="count mono">0 ITEMS</span>
+        </div>
+      </div>
+
+      <div class="ph-toolbar">
+        <div class="switch" id="ph-mode">
+          <button class="sw-opt is-active" data-mode="timeline">Timeline</button>
+          <button class="sw-opt" data-mode="albums">Albums</button>
+          <span class="sw-ink"></span>
+        </div>
+        <div class="switch" id="ph-type">
+          <button class="sw-opt is-active" data-type="all">All</button>
+          <button class="sw-opt" data-type="image">Photos</button>
+          <button class="sw-opt" data-type="video">Videos</button>
+          <span class="sw-ink"></span>
+        </div>
+        <div class="ph-toolbar-spacer"></div>
+        <button class="btn btn-ghost" id="ph-select-btn">Select</button>
+      </div>
+
+      <div id="albums-strip" class="albums-strip hidden"></div>
+      <div id="photos-feed" class="photos-feed"></div>
+
+      <div id="photos-empty" class="bigempty hidden">
+        <div class="bigempty-word">EMPTY</div>
+        <p>Nothing here yet. Connect a source and your media pours in.</p>
+        <button class="btn btn-accent" data-goto="sources">Open Sources →</button>
+      </div>
+    </main>
+
+    <!-- ========== FILMS ========== -->
+    <main id="env-films" class="env env-films hidden">
+      <div id="films-hero" class="hero hidden">
+        <div class="hero-track" id="hero-track"></div>
+        <div class="hero-controls">
+          <button class="hero-btn" id="hero-prev">←</button>
+          <div class="hero-dots" id="hero-dots"></div>
+          <button class="hero-btn" id="hero-next">→</button>
+        </div>
+      </div>
+
+      <div id="films-matchbar" class="matchbar hidden">
+        <span class="mono" id="matchbar-label">MATCHING…</span>
+        <span class="matchbar-track"><span class="matchbar-fill" id="matchbar-fill"></span></span>
+      </div>
+
+      <div id="films-rows"></div>
+
+      <div id="films-setup" class="bigempty hidden">
+        <div class="bigempty-word">CINEMA</div>
+        <p id="films-setup-msg">Add your free TMDb key in Sources and your video files become a film library — posters, ratings, cast.</p>
+        <button class="btn btn-accent" data-goto="sources">Open Sources →</button>
+      </div>
+    </main>
+
+    <!-- ========== SOURCES ========== -->
+    <main id="env-sources" class="env env-sources hidden">
+      <div class="env-head">
+        <div>
+          <div class="kicker mono">MULTI-LINK CLOUD MANAGEMENT</div>
+          <h2 class="env-title">Sources</h2>
+        </div>
+      </div>
+
+      <div id="library-strip" class="library-strip"></div>
+      <div id="sources-grid" class="sources-grid"></div>
+
+      <div class="meta-engine" id="meta-engine">
+        <div class="meta-engine-head">
+          <div>
+            <div class="kicker mono">METADATA ENGINE</div>
+            <h3>Film identification</h3>
+          </div>
+          <span class="engine-mark mono">TMDb</span>
+        </div>
+        <p class="meta-engine-sub">Vaultmall reads your video filenames like a librarian — scrubbing release junk, guessing title and year — then confirms against TMDb. Keys stay in your browser.</p>
+        <form id="meta-form" class="meta-form">
+          <label class="field">
+            <span class="mono">TMDB API KEY (FREE — themoviedb.org)</span>
+            <input id="tmdb-key" type="password" placeholder="paste key" />
+          </label>
+          <label class="field">
+            <span class="mono">OMDB KEY (OPTIONAL — ADDS IMDB + ROTTEN TOMATOES)</span>
+            <input id="omdb-key" type="password" placeholder="paste key" />
+          </label>
+          <button class="btn btn-ink" type="submit">Save keys</button>
+        </form>
+      </div>
+    </main>
+
+    <!-- selection action bar -->
+    <div id="selectbar" class="selectbar hidden">
+      <span id="selectbar-count" class="mono">0 SELECTED</span>
+      <div class="selectbar-actions">
+        <button class="btn btn-paper" id="sel-album-btn">Add to album</button>
+        <button class="btn btn-ghost-ivory" id="sel-cancel-btn">Cancel</button>
+      </div>
+      <div id="album-picker" class="album-picker hidden"></div>
     </div>
   </div>
 
-  <!-- ============ PROVIDER CONFIG MODAL ============ -->
-  <div id="config-modal" class="modal-backdrop hidden">
-    <div class="modal">
-      <div class="modal-head">
+  <!-- ================= MODALS ================= -->
+  <div id="config-modal" class="overlay hidden">
+    <div class="sheet">
+      <div class="sheet-head">
         <h3 id="config-title">Configure</h3>
-        <button class="icon-btn" data-close-config>✕</button>
+        <button class="xbtn" data-close-config>✕</button>
       </div>
-      <div id="config-body" class="config-body"><!-- form injected --></div>
+      <div id="config-body" class="sheet-body"></div>
     </div>
   </div>
 
-  <!-- ============ LIGHTBOX ============ -->
-  <div id="lightbox" class="lightbox hidden">
-    <button class="icon-btn lightbox-close" data-close-lightbox>✕</button>
-    <button class="lightbox-nav prev" data-lb-prev>‹</button>
-    <div id="lightbox-stage" class="lightbox-stage"></div>
-    <button class="lightbox-nav next" data-lb-next>›</button>
-    <div id="lightbox-caption" class="lightbox-caption"></div>
+  <!-- film detail -->
+  <div id="film-modal" class="overlay hidden">
+    <div class="filmsheet" id="filmsheet"></div>
   </div>
 
-  <!-- ============ TOASTS ============ -->
+  <!-- manual match -->
+  <div id="match-modal" class="overlay hidden">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h3>Fix match</h3>
+        <button class="xbtn" data-close-match>✕</button>
+      </div>
+      <div class="sheet-body">
+        <p class="sheet-sub">File: <code id="match-filename"></code></p>
+        <form id="match-form" class="match-form">
+          <input id="match-query" type="text" placeholder="Search TMDb — title, or paste a TMDb ID" />
+          <button class="btn btn-ink" type="submit">Search</button>
+        </form>
+        <div id="match-results" class="match-results"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- lightbox -->
+  <div id="lightbox" class="lightbox hidden">
+    <button class="xbtn lightbox-close" data-close-lightbox>✕</button>
+    <button class="lb-nav prev" data-lb-prev>←</button>
+    <div id="lightbox-stage" class="lightbox-stage"></div>
+    <button class="lb-nav next" data-lb-next>→</button>
+    <div id="lightbox-caption" class="lightbox-caption mono"></div>
+  </div>
+
   <div id="toasts" class="toasts"></div>
 
   <script type="module" src="js/app.js"></script>

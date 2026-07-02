@@ -40,7 +40,7 @@ export async function onRequestPost(context) {
 
         const data = await res.json();
         for (const r of data.resources || []) {
-          resources.push({ public_id: r.public_id, format: r.format, resource_type: r.resource_type || type });
+          resources.push({ public_id: r.public_id, format: r.format, resource_type: r.resource_type || type, created_at: r.created_at || "" });
         }
         cursor = data.next_cursor || "";
         pages++;

@@ -124,6 +124,7 @@ export async function list(uid, { onProgress } = {}) {
           source: "local",
           sub: prefix || handle.name,
           size: file.size,
+          date: file.lastModified || 0,
         });
         scanned++;
         if (onProgress && scanned % 12 === 0) onProgress(scanned);
