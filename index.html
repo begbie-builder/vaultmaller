@@ -74,6 +74,7 @@
         <button class="envtab is-active" data-env="photos">Photos</button>
         <button class="envtab" data-env="films">Films</button>
         <button class="envtab" data-env="sources">Sources</button>
+        <button class="envtab" data-env="settings">Settings</button>
         <span class="envink" id="envink" aria-hidden="true"></span>
       </nav>
 
@@ -167,13 +168,6 @@
           <div class="kicker mono">MULTI-LINK CLOUD MANAGEMENT</div>
           <h2 class="env-title">Sources</h2>
         </div>
-        <div class="env-head-right">
-          <div class="switch" id="theme-mode" title="Theme">
-            <button class="sw-opt is-active" data-mode="dark">Dark</button>
-            <button class="sw-opt" data-mode="light">Light</button>
-            <span class="sw-ink"></span>
-          </div>
-        </div>
       </div>
 
       <div id="library-strip" class="library-strip"></div>
@@ -199,6 +193,120 @@
           </label>
           <button class="btn btn-ink" type="submit">Save keys</button>
         </form>
+      </div>
+    </main>
+
+    <!-- ========== SETTINGS ========== -->
+    <main id="env-settings" class="env env-settings hidden">
+      <div class="env-head">
+        <div>
+          <div class="kicker mono">PREFERENCES</div>
+          <h2 class="env-title">Settings</h2>
+        </div>
+      </div>
+
+      <div class="settings-grid">
+
+        <section class="setcard">
+          <h3 class="setcard-title">Appearance</h3>
+          <div class="setrow">
+            <div><b>Theme</b><span>Films stays cinematic either way.</span></div>
+            <div class="switch" id="theme-mode">
+              <button class="sw-opt is-active" data-mode="dark">Dark</button>
+              <button class="sw-opt" data-mode="light">Light</button>
+              <span class="sw-ink"></span>
+            </div>
+          </div>
+          <div class="setrow">
+            <div><b>Grid density</b><span>How much media fits on screen.</span></div>
+            <div class="switch" id="density-mode">
+              <button class="sw-opt is-active" data-mode="comfy">Comfy</button>
+              <button class="sw-opt" data-mode="compact">Compact</button>
+              <span class="sw-ink"></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="setcard">
+          <h3 class="setcard-title">Library</h3>
+          <div class="setrow">
+            <div><b>Photos opens in</b><span>Your landing view.</span></div>
+            <div class="switch" id="defview-mode">
+              <button class="sw-opt is-active" data-mode="timeline">Timeline</button>
+              <button class="sw-opt" data-mode="albums">Albums</button>
+              <span class="sw-ink"></span>
+            </div>
+          </div>
+          <div class="setrow">
+            <div><b>Re-run film identification</b><span>Clears all matches and lets TMDb try again.</span></div>
+            <button class="btn btn-ghost btn-sm" id="reset-matches-btn">Reset matches</button>
+          </div>
+        </section>
+
+        <section class="setcard">
+          <h3 class="setcard-title">Playback</h3>
+          <div class="setrow">
+            <div><b>Slideshow speed</b><span>For the ▶ button in the viewer.</span></div>
+            <div class="switch" id="slide-mode">
+              <button class="sw-opt" data-mode="3">3s</button>
+              <button class="sw-opt is-active" data-mode="5">5s</button>
+              <button class="sw-opt" data-mode="10">10s</button>
+            <span class="sw-ink"></span>
+            </div>
+          </div>
+          <div class="setrow">
+            <div><b>Autoplay videos</b><span>Start playing when opened.</span></div>
+            <div class="switch" id="autoplay-mode">
+              <button class="sw-opt is-active" data-mode="on">On</button>
+              <button class="sw-opt" data-mode="off">Off</button>
+              <span class="sw-ink"></span>
+            </div>
+          </div>
+          <div class="setrow">
+            <div><b>Loop videos</b><span>Around and around.</span></div>
+            <div class="switch" id="loop-mode">
+              <button class="sw-opt" data-mode="on">On</button>
+              <button class="sw-opt is-active" data-mode="off">Off</button>
+              <span class="sw-ink"></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="setcard">
+          <h3 class="setcard-title">Account</h3>
+          <div class="setrow">
+            <div><b>Profile photo</b><span>Shown in the top bar.</span></div>
+            <div class="setrow-actions">
+              <button class="btn btn-ghost btn-sm" id="set-avatar-btn">Change</button>
+              <button class="btn btn-ghost btn-sm" id="del-avatar-btn">Remove</button>
+            </div>
+          </div>
+          <div class="setrow">
+            <div><b>Signed in as</b><span id="settings-username">user</span></div>
+            <button class="btn btn-ghost btn-sm" id="settings-logout">Sign out</button>
+          </div>
+        </section>
+
+        <section class="setcard">
+          <h3 class="setcard-title">Data</h3>
+          <div class="setrow">
+            <div><b>Everything syncs</b><span>Sources, keys, albums, matches and these settings follow your account.</span></div>
+          </div>
+          <div class="setrow">
+            <div><b>Export settings</b><span>A JSON backup of your synced data.</span></div>
+            <button class="btn btn-ghost btn-sm" id="export-btn">Download</button>
+          </div>
+          <div class="setrow">
+            <div><b>Import settings</b><span>Restore from a backup file.</span></div>
+            <button class="btn btn-ghost btn-sm" id="import-btn">Choose file</button>
+            <input id="import-input" type="file" accept="application/json" class="hidden" />
+          </div>
+          <div class="setrow">
+            <div><b>Clear this device</b><span>Wipes the local cache. Your account copy is untouched.</span></div>
+            <button class="btn btn-danger btn-sm" id="clear-cache-btn">Clear</button>
+          </div>
+        </section>
+
       </div>
     </main>
 
@@ -249,7 +357,11 @@
 
   <!-- lightbox -->
   <div id="lightbox" class="lightbox hidden">
-    <button class="xbtn lightbox-close" data-close-lightbox>✕</button>
+    <div class="lb-tools">
+      <a class="xbtn" id="lb-download" title="Download" download>⭳</a>
+      <button class="xbtn" id="lb-slideshow" title="Slideshow">▶</button>
+      <button class="xbtn" data-close-lightbox title="Close">✕</button>
+    </div>
     <button class="lb-nav prev" data-lb-prev>←</button>
     <div id="lightbox-stage" class="lightbox-stage"></div>
     <button class="lb-nav next" data-lb-next>→</button>

@@ -278,8 +278,12 @@ origins → Add** your `https://vaultmall.pages.dev` URL. Save.
 **Profile photo:** click your avatar (top right) to upload one; it's cropped
 square and synced with your account. Alt-click removes it.
 
-**Theme:** Sources page, top right. Dark and Light, defaulting to Dark. Films
-stays cinematic either way.
+**SETTINGS** (the quiet corner):
+- Theme (Dark default / Light), grid density, which view Photos opens in.
+- Playback: slideshow speed, autoplay and loop for videos.
+- Account: profile photo, sign out.
+- Data: export/import a JSON backup, reset film matches, clear this device.
+- The viewer also gained a download button and a slideshow (▶, or spacebar).
 
 > After a reload, **Local Files** and **Google Drive** show a *Reconnect* button.
 > That's on purpose — browsers require one click before granting folder access or
