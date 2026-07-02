@@ -145,12 +145,11 @@ async function rpc(token, endpoint, body) {
   return res.json();
 }
 
-// ---- Embedded player ----
-// Browsers can't decode most movie files (mkv / x265), so videos play
-// through Dropbox's own embedded previewer, which transcodes server-side
-// and plays basically anything. It needs a shared link per file and the
-// site's domain added under "Chooser / Embedder domains" in the App
-// Console.
+// ---- Playback hand-off ----
+// Vaultmall's own player is tried first; when the browser can't decode
+// a file (4K x265, exotic audio), we hand off to Dropbox's full player
+// on dropbox.com, which transcodes server-side and plays anything.
+// That needs a shared link per file (sharing.write / sharing.read).
 async function rpcTry(token, endpoint, body) {
   const res = await fetch(`https://api.dropboxapi.com/2/${endpoint}`, {
     method: "POST",
@@ -176,31 +175,10 @@ async function sharedLinkFor(token, path) {
   throw new Error("Couldn't get a Dropbox share link for playback.");
 }
 
-let dropinsPromise = null;
-function loadDropins() {
-  if (window.Dropbox && window.Dropbox.embed) return Promise.resolve();
-  if (!dropinsPromise) {
-    dropinsPromise = new Promise((resolve, reject) => {
-      const sc = document.createElement("script");
-      sc.src = "https://www.dropbox.com/static/api/2/dropins.js";
-      sc.id = "dropboxjs";
-      sc.dataset.appKey = dropboxConfig.appKey;
-      sc.onload = () => resolve();
-      sc.onerror = () => { dropinsPromise = null; reject(new Error("Couldn't load the Dropbox player.")); };
-      document.head.appendChild(sc);
-    });
-  }
-  return dropinsPromise;
-}
-
-// Mount Dropbox's previewer for `path` inside `element`.
-export async function embedInto(element, config, path) {
+// The dropbox.com player URL for `path` (their site transcodes anything).
+export async function videoLink(config, path) {
   const token = await accessTokenFor(config);
-  const link = await sharedLinkFor(token, path);
-  await loadDropins();
-  element.innerHTML = "";
-  window.Dropbox.embed({ link }, element);
-  return link;
+  return sharedLinkFor(token, path);
 }
 
 // config: { refreshToken } (one-click) or { accessToken } (manual fallback)

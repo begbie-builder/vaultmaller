@@ -1161,7 +1161,7 @@ function renderFilmSheet(entry, match) {
 
   const actions = $(".fs-actionrow", sheet);
   if (item.fullUrl && !item.external && !item.embed) {
-    const dl = el("a", "btn btn-ghost-ivory btn-sm", "⭳&nbsp; Download");
+    const dl = el("a", "btn btn-ghost-ivory btn-sm", "↓&nbsp; Download");
     dl.href = item.fullUrl;
     dl.setAttribute("download", item.title);
     actions.appendChild(dl);
@@ -1626,31 +1626,7 @@ async function renderLightbox() {
 
   const st = getSettings();
   if (m.source === "dropbox" && m.type === "video" && m.path) {
-    // Browser-friendly formats stream directly; everything else goes
-    // through Dropbox's embedded previewer, with a one-click escape
-    // hatch to Dropbox's own full player if the embed won't cooperate.
-    const nativeOk = /\.(mp4|m4v|mov|webm)$/i.test(m.title);
-    const st2 = getSettings();
-    if (nativeOk && m.fullUrl) {
-      stage.innerHTML = `<video src="${m.fullUrl}" controls ${st2.autoplay ? "autoplay" : ""} ${st2.loop ? "loop" : ""}></video>`;
-      return;
-    }
-    stage.innerHTML = `<div class="lb-loading">LOADING DROPBOX PLAYER…</div>`;
-    const openedFor = lightboxIndex;
-    try {
-      const wrap = el("div", "dbx-embed");
-      const link = await getProvider("dropbox").module.embedInto(wrap, (state.profile.connections || {}).dropbox || {}, m.path);
-      if (lightboxIndex !== openedFor) return;
-      const col = el("div", "lb-col");
-      col.appendChild(wrap);
-      col.appendChild(el("div", "lb-under",
-        `<a href="${link}" target="_blank" rel="noopener">NOT PLAYING? OPEN IN THE DROPBOX PLAYER ↗</a>`));
-      stage.innerHTML = "";
-      stage.appendChild(col);
-    } catch (e) {
-      if (lightboxIndex !== openedFor) return;
-      stage.innerHTML = `<div class="lb-loading">${escapeHtml(e.message)}</div>`;
-    }
+    playDropboxVideo(stage, m);
     return;
   }
   if (m.embed) {
@@ -1662,6 +1638,52 @@ async function renderLightbox() {
     stage.innerHTML = `<video src="${m.fullUrl}" controls ${st.autoplay ? "autoplay" : ""} ${st.loop ? "loop" : ""}></video>`;
   } else {
     stage.innerHTML = `<img src="${m.fullUrl}" alt="${escapeHtml(m.title)}">`;
+  }
+}
+
+// Dropbox video: always try Vaultmall's own player first — browsers
+// decode more than people think (h264 mkv, hardware HEVC on most
+// machines). If the browser genuinely can't decode the file, hand off
+// to Dropbox's full player, which transcodes anything server-side.
+async function playDropboxVideo(stage, m) {
+  const st = getSettings();
+  const openedFor = lightboxIndex;
+
+  stage.innerHTML = "";
+  const vid = document.createElement("video");
+  vid.controls = true;
+  if (st.autoplay) vid.autoplay = true;
+  if (st.loop) vid.loop = true;
+  vid.src = m.fullUrl;
+  stage.appendChild(vid);
+
+  const playable = await new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(vid.videoWidth > 0), 12000);
+    const good = () => { clearTimeout(timer); resolve(true); };
+    vid.addEventListener("canplay", good, { once: true });
+    vid.addEventListener("loadeddata", good, { once: true });
+    vid.addEventListener("error", () => { clearTimeout(timer); resolve(false); }, { once: true });
+  });
+  if (playable || lightboxIndex !== openedFor || $("#lightbox").classList.contains("hidden")) return;
+
+  // The codec beat this browser. Offer the one route that always works.
+  stage.innerHTML = `<div class="lb-loading">GETTING A PLAYABLE LINK…</div>`;
+  try {
+    const link = await getProvider("dropbox").module.videoLink((state.profile.connections || {}).dropbox || {}, m.path);
+    if (lightboxIndex !== openedFor) return;
+    const panel = el("div", "lb-handoff", `
+      <span class="mono">THIS BROWSER CAN'T DECODE THIS FILE (LIKELY 4K x265)</span>
+      <p>Dropbox's player converts it on their servers and plays it instantly.</p>`);
+    const go = el("a", "btn btn-accent", "▶&nbsp;&nbsp;Play in the Dropbox player&nbsp;↗");
+    go.href = link;
+    go.target = "_blank";
+    go.rel = "noopener";
+    panel.appendChild(go);
+    stage.innerHTML = "";
+    stage.appendChild(panel);
+  } catch (e) {
+    if (lightboxIndex !== openedFor) return;
+    stage.innerHTML = `<div class="lb-loading">${escapeHtml(e.message)}</div>`;
   }
 }
 

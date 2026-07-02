@@ -173,6 +173,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--panel-2, #ee
    ================================================================== */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  text-decoration: none;
   padding: 13px 22px; font-weight: 700; font-size: 14px;
   border: 2px solid var(--ink);
   transition: transform 0.18s var(--snap), background-color 0.18s var(--snap), color 0.18s var(--snap), border-color 0.18s var(--snap);
@@ -845,10 +846,13 @@ body[data-density="compact"] .poster { flex: 0 0 140px; }
   .settings-grid { grid-template-columns: 1fr; }
 }
 
-/* Dropbox embedded player */
-.dbx-embed {
-  width: min(92vw, 1240px); height: min(78vh, 690px);
-  background: #000; border: 3px solid var(--ivory); border-radius: var(--r, 15px);
-  overflow: hidden; animation: sheetIn 0.35s var(--snap);
+/* playback hand-off panel (browser can't decode the file) */
+.lb-handoff {
+  display: grid; gap: 14px; justify-items: center; text-align: center;
+  background: var(--screen-2); color: var(--ivory);
+  border: 2px solid var(--screen-line); border-radius: var(--r-lg, 22px);
+  padding: 40px 46px; max-width: 540px;
+  animation: sheetIn 0.35s var(--snap);
 }
-.dbx-embed iframe { width: 100%; height: 100%; border: 0; }
+.lb-handoff .mono { color: var(--soft); }
+.lb-handoff p { color: var(--screen-grey); font-size: 14.5px; max-width: 380px; }
