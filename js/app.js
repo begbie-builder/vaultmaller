@@ -1269,30 +1269,27 @@ function renderHero(entries) {
   layoutHero();
   heroTimer = setInterval(() => stepHero(1), 8000);
 }
-// Cards live in side-by-side lanes: lane 0 is the front card, lane 1
-// peeks at the right edge, the rest wait off-screen. Advancing slides
-// everything one lane left, so the next feature slides IN from the
-// right while the old one slides out to the left (lane -1).
+// A fanned deck: the front card sits full size, the next ones behind
+// it are shifted right and scaled down so they peek out smaller and
+// shorter. Advancing pulls the next card forward and tucks the old one
+// into the back of the stack.
+const HERO_LANES = [
+  { x: 0,   s: 1,    z: 30, o: 1 }, // front
+  { x: 80,  s: 0.93, z: 20, o: 1 }, // one back
+  { x: 134, s: 0.86, z: 10, o: 1 }, // two back
+];
+const HERO_HIDDEN = { x: 168, s: 0.82, z: 5, o: 0 };
 function layoutHero() {
   const stack = $("#hero-stack");
   const n = heroEntries.length;
-  const offscreen = (r) => r < 0 || r > 1;
   $$(".hs-card", stack).forEach((c, i) => {
-    let r = ((i - heroIndex) % n + n) % n;
-    if (n > 2 && r === n - 1) r = -1; // the card just watched exits stage left
-    const prev = c.dataset.r === undefined ? null : +c.dataset.r;
-    c.dataset.r = r;
-    // A card moving between two off-screen lanes must not sweep across
-    // the visible stage: snap it silently.
-    if (prev !== null && offscreen(prev) && offscreen(r)) {
-      c.style.transition = "none";
-      c.style.transform = `translateX(calc(${r * 100}% + ${r * 16}px))`;
-      void c.offsetWidth;
-      c.style.transition = "";
-    } else {
-      c.style.transform = `translateX(calc(${r * 100}% + ${r * 16}px))`;
-    }
-    c.classList.toggle("is-front", r === 0);
+    const rel = ((i - heroIndex) % n + n) % n;
+    const p = HERO_LANES[rel] || HERO_HIDDEN;
+    c.style.transform = `translateX(${p.x}px) scale(${p.s})`;
+    c.style.zIndex = p.z;
+    c.style.opacity = p.o;
+    c.style.pointerEvents = p.o ? "auto" : "none";
+    c.classList.toggle("is-front", rel === 0);
   });
   $$("#hero-dots .hero-dot").forEach((d, di) => d.classList.toggle("is-active", di === heroIndex));
 }
