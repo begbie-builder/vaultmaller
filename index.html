@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Vaultmall. Your personal photo vault and your own private cinema, in one place." />
+  <meta name="description" content="Vaultmall. Your private cinema and your personal photo vault, in one place." />
   <title>Vaultmall</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,7 +11,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
-<body data-env="photos" data-theme="dark">
+<body data-env="movies" data-theme="dark">
 
   <!-- ================= SPLASH ================= -->
   <div id="splash" class="splash">
@@ -29,11 +29,11 @@
         <span class="rv" style="--d:1">Vault</span><span class="rv accent-text" style="--d:2">mall</span>
       </h1>
       <div class="auth-manifesto">
-        <p class="rv" style="--d:3"><span class="idx mono">01</span>Your photographs, shelved like a printed archive.</p>
-        <p class="rv" style="--d:4"><span class="idx mono">02</span>Your films, staged like a private cinema.</p>
+        <p class="rv" style="--d:3"><span class="idx mono">01</span>Your films, staged like a private cinema.</p>
+        <p class="rv" style="--d:4"><span class="idx mono">02</span>Your photographs, shelved like a printed archive.</p>
         <p class="rv" style="--d:5"><span class="idx mono">03</span>Every source yours alone, on every device you sign into.</p>
       </div>
-      <div class="auth-foot mono rv" style="--d:6">PHOTOS / CINEMA / SOURCES</div>
+      <div class="auth-foot mono rv" style="--d:6">MOVIES / TV SHOWS / PHOTOS / SOURCES</div>
     </section>
 
     <section class="auth-right">
@@ -66,22 +66,54 @@
 
   <!-- ================= APP ================= -->
   <div id="app" class="app hidden">
+    <div class="frame">
 
-    <header class="topbar">
-      <button class="brand" id="brand-home">Vault<span class="accent-text">mall</span></button>
+      <!-- ========== TOPBAR ========== -->
+      <header class="topbar">
+        <button class="brand" id="brand-home">
+          <svg class="brand-mark" viewBox="0 0 64 64" width="30" height="30" aria-hidden="true">
+            <rect width="64" height="64" rx="16" fill="#2C3333"/>
+            <rect x="24" y="7" width="16" height="3.5" rx="1.75" fill="#A5C9CA"/>
+            <rect x="9" y="15" width="46" height="36" rx="11" fill="#395B64"/>
+            <path d="M27.5 25.5c0-1.6 1.7-2.5 3-1.7l11 6.5c1.3.8 1.3 2.6 0 3.4l-11 6.5c-1.3.8-3-.1-3-1.7z" fill="#E7F6F2"/>
+            <circle cx="16" cy="57.5" r="2" fill="#A5C9CA"/><circle cx="24" cy="57.5" r="2" fill="#5F7473"/><circle cx="32" cy="57.5" r="2" fill="#5F7473"/>
+          </svg>
+          <span class="brand-word">Vault<span class="accent-text">mall</span></span>
+        </button>
 
-      <nav class="envnav" id="envnav">
-        <button class="envtab is-active" data-env="photos">Photos</button>
-        <button class="envtab" data-env="films">Cinema</button>
-        <button class="envtab" data-env="sources">Sources</button>
-        <span class="envink" id="envink" aria-hidden="true"></span>
-      </nav>
-
-      <div class="topbar-right">
-        <div class="search">
-          <input id="search-input" type="text" placeholder="Search" />
-          <span class="search-underline"></span>
+        <div class="cat" id="catpick">
+          <button class="cat-btn" id="cat-btn" aria-haspopup="true">
+            <span id="cat-label">Movies</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="cat-menu hidden" id="cat-menu">
+            <button data-cat="movies">Movies</button>
+            <button data-cat="tv">TV Shows</button>
+            <button data-cat="photos">Photos</button>
+            <button data-cat="sources">Sources</button>
+          </div>
         </div>
+
+        <div class="searchbar">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20.4 20.4l-3.4-3.4"/></svg>
+          <input id="search-input" type="text" placeholder="Movies, series, photos…" autocomplete="off" />
+          <button class="search-clear hidden" id="search-clear" aria-label="Clear search">✕</button>
+        </div>
+
+        <div class="notif">
+          <button class="iconbtn" id="notif-btn" aria-label="Notifications">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16v-5a6 6 0 1 0-12 0v5l-1.8 2.4h15.6z"/><path d="M10.2 20.5a2 2 0 0 0 3.6 0"/></svg>
+            <span class="notif-dot hidden" id="notif-dot"></span>
+          </button>
+          <div class="notif-panel hidden" id="notif-panel">
+            <div class="notif-head">
+              <b>Notifications</b>
+              <button id="notif-clear">Clear all</button>
+            </div>
+            <div id="notif-list" class="notif-list"></div>
+          </div>
+        </div>
+
         <div class="userchip">
           <button id="user-menu-btn" class="userbtn" aria-haspopup="true">
             <span class="avatar">
@@ -90,8 +122,9 @@
             </span>
             <span class="usercol">
               <span id="user-name" class="username">user</span>
-              <span class="mono usercaret">MENU ▾</span>
+              <span class="usersub">Vaultmall</span>
             </span>
+            <svg class="usercaret" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           <div id="user-menu" class="usermenu hidden">
             <button data-menu="settings">Settings</button>
@@ -101,296 +134,353 @@
           </div>
           <input id="avatar-input" type="file" accept="image/*" class="hidden" />
         </div>
-      </div>
-    </header>
+      </header>
 
-    <!-- ========== PHOTOS ========== -->
-    <main id="env-photos" class="env env-photos">
-      <div class="env-head">
-        <div>
-          <div class="kicker mono">THE PERSONAL VAULT</div>
-          <h2 class="env-title">Photos</h2>
-        </div>
-        <div class="env-head-right">
-          <span id="photos-count" class="count mono">0 ITEMS</span>
-        </div>
-      </div>
+      <!-- ========== SHELL: SIDEBAR + CONTENT ========== -->
+      <div class="shell">
+        <aside class="sidebar">
+          <nav class="snav">
+            <button class="snav-item is-active" data-nav="movies">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5"/></svg>
+              <span>Home</span>
+            </button>
+            <button class="snav-item" data-nav="favorites">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5s-7.2-4.4-9.3-8.6C1.2 8.7 3 5.3 6.4 5.3c2 0 3.6 1.1 4.6 2.6h2c1-1.5 2.6-2.6 4.6-2.6 3.4 0 5.2 3.4 3.7 6.6-2.1 4.2-9.3 8.6-9.3 8.6z"/></svg>
+              <span>Favorites</span>
+            </button>
+            <button class="snav-item" data-nav="recent">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2.5"/></svg>
+              <span>Recently added</span>
+            </button>
+            <button class="snav-item" data-nav="trending">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
+              <span>Trending</span>
+            </button>
+          </nav>
 
-      <div class="ph-toolbar">
-        <div class="switch" id="ph-mode">
-          <button class="sw-opt is-active" data-mode="timeline">Timeline</button>
-          <button class="sw-opt" data-mode="albums">Albums</button>
-          <span class="sw-ink"></span>
-        </div>
-        <div class="switch" id="ph-type">
-          <button class="sw-opt is-active" data-type="all">All</button>
-          <button class="sw-opt" data-type="image">Photos</button>
-          <button class="sw-opt" data-type="video">Videos</button>
-          <span class="sw-ink"></span>
-        </div>
-        <div class="ph-toolbar-spacer"></div>
-        <button class="btn btn-ghost" id="ph-select-btn">Select</button>
-      </div>
+          <nav class="snav snav-2">
+            <button class="snav-item" data-nav="settings">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.7l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.7-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.7.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.7 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.7.3 1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.7-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.7 1.6 1.6 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.5 1z"/></svg>
+              <span>Settings</span>
+            </button>
+            <button class="snav-item" data-nav="help">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.4 9.2a2.7 2.7 0 0 1 5.2 1c0 1.8-2.6 2.2-2.6 3.8"/><circle cx="12" cy="17.2" r="0.4" fill="currentColor"/></svg>
+              <span>Support</span>
+            </button>
+          </nav>
 
-      <div id="albums-strip" class="albums-strip hidden"></div>
-      <div id="photos-feed" class="photos-feed"></div>
-
-      <div id="photos-empty" class="bigempty hidden">
-        <div class="bigempty-word">EMPTY</div>
-        <p>Nothing here yet. Connect a source and your media pours in.</p>
-        <button class="btn btn-accent" data-goto="sources">Open Sources →</button>
-      </div>
-    </main>
-
-    <!-- ========== FILMS ========== -->
-    <main id="env-films" class="env env-films hidden">
-      <div id="films-hero" class="hero hidden">
-        <div class="hero-track" id="hero-track"></div>
-        <div class="hero-controls">
-          <button class="hero-btn" id="hero-prev">←</button>
-          <div class="hero-dots" id="hero-dots"></div>
-          <button class="hero-btn" id="hero-next">→</button>
-        </div>
-      </div>
-
-      <div id="films-matchbar" class="matchbar hidden">
-        <span class="mono" id="matchbar-label">MATCHING…</span>
-        <span class="matchbar-track"><span class="matchbar-fill" id="matchbar-fill"></span></span>
-      </div>
-
-      <div id="films-rows"></div>
-
-      <div id="films-setup" class="bigempty hidden">
-        <div class="bigempty-word">CINEMA</div>
-        <p id="films-setup-msg">Add your free TMDb key in Sources and your pile of videos becomes an actual library.</p>
-        <button class="btn btn-accent" data-goto="sources">Open Sources →</button>
-      </div>
-    </main>
-
-    <!-- ========== SOURCES ========== -->
-    <main id="env-sources" class="env env-sources hidden">
-      <div class="env-head">
-        <div>
-          <div class="kicker mono">MULTI-LINK CLOUD MANAGEMENT</div>
-          <h2 class="env-title">Sources</h2>
-        </div>
-      </div>
-
-      <div id="library-strip" class="library-strip"></div>
-      <div id="sources-grid" class="sources-grid"></div>
-
-      <div class="meta-engine" id="meta-engine">
-        <div class="meta-engine-head">
-          <div>
-            <div class="kicker mono">METADATA ENGINE</div>
-            <h3>Film identification</h3>
-          </div>
-          <span class="engine-mark mono">TMDb</span>
-        </div>
-        <p class="meta-engine-sub">Turns your questionably named video files into a proper library with posters, ratings and cast. Works better than your file naming deserves.</p>
-        <form id="meta-form" class="meta-form">
-          <label class="field">
-            <span class="mono">TMDB API KEY (FREE, FROM THEMOVIEDB.ORG)</span>
-            <input id="tmdb-key" type="password" placeholder="paste key" />
-          </label>
-          <label class="field">
-            <span class="mono">OMDB KEY (OPTIONAL, ADDS IMDB AND ROTTEN TOMATOES)</span>
-            <input id="omdb-key" type="password" placeholder="paste key" />
-          </label>
-          <button class="btn btn-ink" type="submit">Save keys</button>
-        </form>
-      </div>
-    </main>
-
-    <!-- ========== SETTINGS ========== -->
-    <main id="env-settings" class="env env-settings hidden">
-      <div class="env-head">
-        <div>
-          <div class="kicker mono">PREFERENCES</div>
-          <h2 class="env-title">Settings</h2>
-        </div>
-      </div>
-
-      <div class="settings-grid">
-
-        <section class="setcard">
-          <h3 class="setcard-title">Appearance</h3>
-          <div class="setrow">
-            <div><b>Theme</b><span>Films stays cinematic either way.</span></div>
-            <div class="switch" id="theme-mode">
-              <button class="sw-opt is-active" data-mode="dark">Dark</button>
-              <button class="sw-opt" data-mode="light">Light</button>
-              <span class="sw-ink"></span>
+          <div class="continue hidden" id="continue-block">
+            <div class="continue-head">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5l4.5 2.5-4.5 2.5z" fill="currentColor" stroke="none"/></svg>
+              <span>Continue Watching</span>
             </div>
+            <div id="continue-list" class="continue-list"></div>
           </div>
-          <div class="setrow">
-            <div><b>Grid density</b><span>How much media fits on screen.</span></div>
-            <div class="switch" id="density-mode">
-              <button class="sw-opt is-active" data-mode="comfy">Comfy</button>
-              <button class="sw-opt" data-mode="compact">Compact</button>
-              <span class="sw-ink"></span>
-            </div>
-          </div>
-        </section>
+        </aside>
 
-        <section class="setcard">
-          <h3 class="setcard-title">Library</h3>
-          <div class="setrow">
-            <div><b>Photos opens in</b><span>Your landing view.</span></div>
-            <div class="switch" id="defview-mode">
-              <button class="sw-opt is-active" data-mode="timeline">Timeline</button>
-              <button class="sw-opt" data-mode="albums">Albums</button>
-              <span class="sw-ink"></span>
-            </div>
-          </div>
-          <div class="setrow">
-            <div><b>Re-run film identification</b><span>Clears all matches and lets TMDb try again.</span></div>
-            <button class="btn btn-ghost btn-sm" id="reset-matches-btn">Reset matches</button>
-          </div>
-        </section>
+        <main class="content">
 
-        <section class="setcard">
-          <h3 class="setcard-title">Playback</h3>
-          <div class="setrow">
-            <div><b>Slideshow speed</b><span>For the ▶ button in the viewer.</span></div>
-            <div class="switch" id="slide-mode">
-              <button class="sw-opt" data-mode="3">3s</button>
-              <button class="sw-opt is-active" data-mode="5">5s</button>
-              <button class="sw-opt" data-mode="10">10s</button>
-            <span class="sw-ink"></span>
+          <!-- ==== CINEMA (movies / tv / favorites / recent / trending) ==== -->
+          <section id="env-cinema" class="env">
+            <div id="cin-head" class="cin-head hidden">
+              <h2 id="cin-title" class="cin-title">Favorites</h2>
+              <span id="cin-count" class="cin-count mono">0 TITLES</span>
             </div>
-          </div>
-          <div class="setrow">
-            <div><b>Autoplay videos</b><span>Start playing when opened.</span></div>
-            <div class="switch" id="autoplay-mode">
-              <button class="sw-opt is-active" data-mode="on">On</button>
-              <button class="sw-opt" data-mode="off">Off</button>
-              <span class="sw-ink"></span>
-            </div>
-          </div>
-          <div class="setrow">
-            <div><b>Loop videos</b><span>Around and around.</span></div>
-            <div class="switch" id="loop-mode">
-              <button class="sw-opt" data-mode="on">On</button>
-              <button class="sw-opt is-active" data-mode="off">Off</button>
-              <span class="sw-ink"></span>
-            </div>
-          </div>
-        </section>
 
-        <section class="setcard">
-          <h3 class="setcard-title">Account</h3>
-          <div class="setrow">
-            <div><b>Profile photo</b><span>Shown in the top bar.</span></div>
-            <div class="setrow-actions">
-              <button class="btn btn-ghost btn-sm" id="set-avatar-btn">Change</button>
-              <button class="btn btn-ghost btn-sm" id="del-avatar-btn">Remove</button>
+            <div id="films-hero" class="hero hidden">
+              <div class="hero-dots" id="hero-dots"></div>
+              <div class="hero-stack" id="hero-stack"></div>
             </div>
-          </div>
-          <div class="setrow">
-            <div><b>Signed in as</b><span id="settings-username">user</span></div>
-            <button class="btn btn-ghost btn-sm" id="settings-logout">Sign out</button>
-          </div>
-        </section>
 
-        <section class="setcard">
-          <h3 class="setcard-title">Data</h3>
-          <div class="setrow">
-            <div><b>Everything syncs</b><span>Sources, keys, albums, matches and these settings follow your account.</span></div>
-          </div>
-          <div class="setrow">
-            <div><b>Export settings</b><span>A JSON backup of your synced data.</span></div>
-            <button class="btn btn-ghost btn-sm" id="export-btn">Download</button>
-          </div>
-          <div class="setrow">
-            <div><b>Import settings</b><span>Restore from a backup file.</span></div>
-            <button class="btn btn-ghost btn-sm" id="import-btn">Choose file</button>
-            <input id="import-input" type="file" accept="application/json" class="hidden" />
-          </div>
-          <div class="setrow">
-            <div><b>Clear this device</b><span>Wipes the local cache. Your account copy is untouched.</span></div>
-            <button class="btn btn-danger btn-sm" id="clear-cache-btn">Clear</button>
-          </div>
-        </section>
+            <div id="films-matchbar" class="matchbar hidden">
+              <span class="mono" id="matchbar-label">MATCHING…</span>
+              <span class="matchbar-track"><span class="matchbar-fill" id="matchbar-fill"></span></span>
+            </div>
 
+            <div id="chips-row" class="chips-row hidden">
+              <div class="chips" id="chips"></div>
+              <div class="chips-nav">
+                <button class="chip-arrow" id="chips-prev" aria-label="Scroll genres left">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+                </button>
+                <button class="chip-arrow solid" id="chips-next" aria-label="Scroll genres right">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div id="films-grid" class="films-grid"></div>
+
+            <div id="films-setup" class="bigempty hidden">
+              <div class="bigempty-word">CINEMA</div>
+              <p id="films-setup-msg">Add your free TMDb key and your pile of videos becomes an actual library.</p>
+              <button class="btn btn-accent" data-goto="sources">Open Sources →</button>
+            </div>
+          </section>
+
+          <!-- ==== PHOTOS ==== -->
+          <section id="env-photos" class="env hidden">
+            <div class="env-head">
+              <div>
+                <h2 class="env-title">Photos</h2>
+                <span id="photos-count" class="count mono">0 ITEMS</span>
+              </div>
+            </div>
+
+            <div class="ph-toolbar">
+              <div class="switch" id="ph-mode">
+                <button class="sw-opt is-active" data-mode="timeline">Timeline</button>
+                <button class="sw-opt" data-mode="albums">Albums</button>
+                <span class="sw-ink"></span>
+              </div>
+              <div class="switch" id="ph-type">
+                <button class="sw-opt is-active" data-type="all">All</button>
+                <button class="sw-opt" data-type="image">Photos</button>
+                <button class="sw-opt" data-type="video">Videos</button>
+                <span class="sw-ink"></span>
+              </div>
+              <div class="ph-toolbar-spacer"></div>
+              <button class="btn btn-ghost" id="ph-select-btn">Select</button>
+            </div>
+
+            <div id="albums-strip" class="albums-strip hidden"></div>
+            <div id="photos-feed" class="photos-feed"></div>
+
+            <div id="photos-empty" class="bigempty hidden">
+              <div class="bigempty-word">EMPTY</div>
+              <p>Nothing here yet. Connect a source and your media pours in.</p>
+              <button class="btn btn-accent" data-goto="sources">Open Sources →</button>
+            </div>
+          </section>
+
+          <!-- ==== SOURCES ==== -->
+          <section id="env-sources" class="env hidden">
+            <div class="env-head">
+              <div>
+                <h2 class="env-title">Sources</h2>
+                <span class="count mono">MULTI-LINK CLOUD MANAGEMENT</span>
+              </div>
+            </div>
+
+            <div id="library-strip" class="library-strip"></div>
+            <div id="sources-grid" class="sources-grid"></div>
+
+            <div class="meta-engine" id="meta-engine">
+              <div class="meta-engine-head">
+                <div>
+                  <div class="kicker mono">METADATA ENGINE</div>
+                  <h3>Film identification</h3>
+                </div>
+                <span class="engine-mark mono">TMDb</span>
+              </div>
+              <p class="meta-engine-sub">Turns your questionably named video files into a proper library with posters, ratings and cast. Works better than your file naming deserves.</p>
+              <form id="meta-form" class="meta-form">
+                <label class="field">
+                  <span class="mono">TMDB API KEY (FREE, FROM THEMOVIEDB.ORG)</span>
+                  <input id="tmdb-key" type="password" placeholder="paste key" />
+                </label>
+                <label class="field">
+                  <span class="mono">OMDB KEY (OPTIONAL, ADDS IMDB AND ROTTEN TOMATOES)</span>
+                  <input id="omdb-key" type="password" placeholder="paste key" />
+                </label>
+                <button class="btn btn-ink" type="submit">Save keys</button>
+              </form>
+            </div>
+          </section>
+
+          <!-- ==== SETTINGS ==== -->
+          <section id="env-settings" class="env hidden">
+            <div class="env-head">
+              <div>
+                <h2 class="env-title">Settings</h2>
+                <span class="count mono">PREFERENCES</span>
+              </div>
+            </div>
+
+            <div class="settings-grid">
+
+              <section class="setcard">
+                <h3 class="setcard-title">Appearance</h3>
+                <div class="setrow">
+                  <div><b>Theme</b><span>Cinema stays cinematic either way.</span></div>
+                  <div class="switch" id="theme-mode">
+                    <button class="sw-opt is-active" data-mode="dark">Dark</button>
+                    <button class="sw-opt" data-mode="light">Light</button>
+                    <span class="sw-ink"></span>
+                  </div>
+                </div>
+                <div class="setrow">
+                  <div><b>Grid density</b><span>How much media fits on screen.</span></div>
+                  <div class="switch" id="density-mode">
+                    <button class="sw-opt is-active" data-mode="comfy">Comfy</button>
+                    <button class="sw-opt" data-mode="compact">Compact</button>
+                    <span class="sw-ink"></span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="setcard">
+                <h3 class="setcard-title">Library</h3>
+                <div class="setrow">
+                  <div><b>Photos opens in</b><span>Your landing view.</span></div>
+                  <div class="switch" id="defview-mode">
+                    <button class="sw-opt is-active" data-mode="timeline">Timeline</button>
+                    <button class="sw-opt" data-mode="albums">Albums</button>
+                    <span class="sw-ink"></span>
+                  </div>
+                </div>
+                <div class="setrow">
+                  <div><b>Re-run film identification</b><span>Clears all matches and lets TMDb try again.</span></div>
+                  <button class="btn btn-ghost btn-sm" id="reset-matches-btn">Reset matches</button>
+                </div>
+              </section>
+
+              <section class="setcard">
+                <h3 class="setcard-title">Playback</h3>
+                <div class="setrow">
+                  <div><b>Slideshow speed</b><span>For the ▶ button in the viewer.</span></div>
+                  <div class="switch" id="slide-mode">
+                    <button class="sw-opt" data-mode="3">3s</button>
+                    <button class="sw-opt is-active" data-mode="5">5s</button>
+                    <button class="sw-opt" data-mode="10">10s</button>
+                  <span class="sw-ink"></span>
+                  </div>
+                </div>
+                <div class="setrow">
+                  <div><b>Autoplay videos</b><span>Start playing when opened.</span></div>
+                  <div class="switch" id="autoplay-mode">
+                    <button class="sw-opt is-active" data-mode="on">On</button>
+                    <button class="sw-opt" data-mode="off">Off</button>
+                    <span class="sw-ink"></span>
+                  </div>
+                </div>
+                <div class="setrow">
+                  <div><b>Loop videos</b><span>Around and around.</span></div>
+                  <div class="switch" id="loop-mode">
+                    <button class="sw-opt" data-mode="on">On</button>
+                    <button class="sw-opt is-active" data-mode="off">Off</button>
+                    <span class="sw-ink"></span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="setcard">
+                <h3 class="setcard-title">Account</h3>
+                <div class="setrow">
+                  <div><b>Profile photo</b><span>Shown in the top bar.</span></div>
+                  <div class="setrow-actions">
+                    <button class="btn btn-ghost btn-sm" id="set-avatar-btn">Change</button>
+                    <button class="btn btn-ghost btn-sm" id="del-avatar-btn">Remove</button>
+                  </div>
+                </div>
+                <div class="setrow">
+                  <div><b>Signed in as</b><span id="settings-username">user</span></div>
+                  <button class="btn btn-ghost btn-sm" id="settings-logout">Sign out</button>
+                </div>
+              </section>
+
+              <section class="setcard">
+                <h3 class="setcard-title">Data</h3>
+                <div class="setrow">
+                  <div><b>Everything syncs</b><span>Sources, keys, albums, matches and these settings follow your account.</span></div>
+                </div>
+                <div class="setrow">
+                  <div><b>Export settings</b><span>A JSON backup of your synced data.</span></div>
+                  <button class="btn btn-ghost btn-sm" id="export-btn">Download</button>
+                </div>
+                <div class="setrow">
+                  <div><b>Import settings</b><span>Restore from a backup file.</span></div>
+                  <button class="btn btn-ghost btn-sm" id="import-btn">Choose file</button>
+                  <input id="import-input" type="file" accept="application/json" class="hidden" />
+                </div>
+                <div class="setrow">
+                  <div><b>Clear this device</b><span>Wipes the local cache. Your account copy is untouched.</span></div>
+                  <button class="btn btn-danger btn-sm" id="clear-cache-btn">Clear</button>
+                </div>
+              </section>
+
+            </div>
+          </section>
+
+          <!-- ==== HELP / INFO ==== -->
+          <section id="env-help" class="env hidden">
+            <div class="env-head">
+              <div>
+                <h2 class="env-title">Help &amp; info</h2>
+                <span class="count mono">THE MANUAL</span>
+              </div>
+            </div>
+
+            <div class="help-wrap">
+
+              <section class="setcard">
+                <h3 class="setcard-title">Playing your media</h3>
+                <p class="help-p">The short version: <b>MP4 files (H.264 video, AAC audio) play instantly
+                everywhere</b>, on every source and every device. If you get to choose a format, choose that.</p>
+                <p class="help-p">Got MKVs instead? You're covered. Vaultmall ships
+                <b>Vaultmux</b>, its own streaming remuxer: it reads the MKV over the network,
+                rewraps the video and audio in real time and plays them in Vaultmall's own
+                player. No conversion step, no waiting, no quality loss, full seeking. It
+                engages automatically whenever you press play on an MKV.</p>
+              </section>
+
+              <section class="setcard">
+                <h3 class="setcard-title">Vaultmux, and its honest limits</h3>
+                <ul class="help-list">
+                  <li><b>Works with:</b> Dropbox, today. Other sources use their own playback routes below.</li>
+                  <li><b>Video it handles:</b> H.264, HEVC (x265) and VP9 inside MKV or WebM.</li>
+                  <li><b>Audio it handles:</b> AAC. That covers most files.</li>
+                  <li><b>4K x265 needs hardware.</b> Vaultmux never converts video, so your device's
+                    hardware decoder does the work. Macs from 2017 on and most recent Windows
+                    machines have HEVC hardware. Safari is the most generous with it.</li>
+                  <li><b>DTS and Dolby audio can't be decoded by any browser.</b> Vaultmux will play
+                    the video silently and tell you; use the one-click Dropbox player hand-off for
+                    those files, or prefer AAC audio tracks.</li>
+                  <li><b>Seeking</b> uses the MKV's own cue index, which nearly every MKV has.</li>
+                  <li>If Vaultmux can't play something, you always get a one-click hand-off to
+                    Dropbox's own player, which converts anything on their servers.</li>
+                </ul>
+              </section>
+
+              <section class="setcard">
+                <h3 class="setcard-title">Sources at a glance</h3>
+                <ul class="help-list">
+                  <li><b>Local Files</b> · Best all-rounder: photos and videos straight off this
+                    machine, nothing uploaded. Limits: desktop Chrome, Edge or Brave only; one
+                    click to reconnect each visit; this device only.</li>
+                  <li><b>Dropbox</b> · The full experience: one-click connect, photos, native video,
+                    and Vaultmux for MKVs. Limits: free accounts have daily bandwidth caps;
+                    un-reviewed apps allow 500 connected users.</li>
+                  <li><b>Cloudinary</b> · A real media CDN, great for streaming MP4s and photos.
+                    Limits: needs the deployed site (the serverless helper); 25 GB on the free plan.</li>
+                  <li><b>Google Drive</b> · Photos inline; videos play through Drive's embedded
+                    player inside Vaultmall. Limits: you must be signed into Google in this
+                    browser; no Vaultmux, so playback quality choices are Drive's.</li>
+                  <li><b>MEGA</b> · End-to-end encrypted; files decrypt in your browser. Limits:
+                    best for smaller folders and photos; whole files decrypt before video plays.</li>
+                </ul>
+              </section>
+
+              <section class="setcard">
+                <h3 class="setcard-title">Metadata keys</h3>
+                <ul class="help-list">
+                  <li><b>TMDb key</b> (required for Cinema): free at
+                    <code>themoviedb.org</code> → Settings → API. Powers posters, backdrops,
+                    logos, ratings and cast.</li>
+                  <li><b>OMDb key</b> (optional): free at <code>omdbapi.com/apikey.aspx</code>,
+                    1,000 requests a day. Adds IMDb ratings and Rotten Tomatoes scores to
+                    title pages. Without it those two tiles read n/a.</li>
+                  <li>Both live in Sources → nothing to reconfigure per device; they sync
+                    with your account.</li>
+                </ul>
+              </section>
+
+            </div>
+          </section>
+
+        </main>
       </div>
-    </main>
-
-    <!-- ========== HELP / INFO ========== -->
-    <main id="env-help" class="env env-help hidden">
-      <div class="env-head">
-        <div>
-          <div class="kicker mono">THE MANUAL</div>
-          <h2 class="env-title">Help &amp; info</h2>
-        </div>
-      </div>
-
-      <div class="help-wrap">
-
-        <section class="setcard">
-          <h3 class="setcard-title">Playing your media</h3>
-          <p class="help-p">The short version: <b>MP4 files (H.264 video, AAC audio) play instantly
-          everywhere</b>, on every source and every device. If you get to choose a format, choose that.</p>
-          <p class="help-p">Got MKVs instead? You're covered. Vaultmall ships
-          <b>Vaultmux</b>, its own streaming remuxer: it reads the MKV over the network,
-          rewraps the video and audio in real time and plays them in Vaultmall's own
-          player. No conversion step, no waiting, no quality loss, full seeking. It
-          engages automatically whenever you press play on an MKV.</p>
-        </section>
-
-        <section class="setcard">
-          <h3 class="setcard-title">Vaultmux, and its honest limits</h3>
-          <ul class="help-list">
-            <li><b>Works with:</b> Dropbox, today. Other sources use their own playback routes below.</li>
-            <li><b>Video it handles:</b> H.264, HEVC (x265) and VP9 inside MKV or WebM.</li>
-            <li><b>Audio it handles:</b> AAC. That covers most files.</li>
-            <li><b>4K x265 needs hardware.</b> Vaultmux never converts video, so your device's
-              hardware decoder does the work. Macs from 2017 on and most recent Windows
-              machines have HEVC hardware. Safari is the most generous with it.</li>
-            <li><b>DTS and Dolby audio can't be decoded by any browser.</b> Vaultmux will play
-              the video silently and tell you; use the one-click Dropbox player hand-off for
-              those files, or prefer AAC audio tracks.</li>
-            <li><b>Seeking</b> uses the MKV's own cue index, which nearly every MKV has.</li>
-            <li>If Vaultmux can't play something, you always get a one-click hand-off to
-              Dropbox's own player, which converts anything on their servers.</li>
-          </ul>
-        </section>
-
-        <section class="setcard">
-          <h3 class="setcard-title">Sources at a glance</h3>
-          <ul class="help-list">
-            <li><b>Local Files</b> · Best all-rounder: photos and videos straight off this
-              machine, nothing uploaded. Limits: desktop Chrome, Edge or Brave only; one
-              click to reconnect each visit; this device only.</li>
-            <li><b>Dropbox</b> · The full experience: one-click connect, photos, native video,
-              and Vaultmux for MKVs. Limits: free accounts have daily bandwidth caps;
-              un-reviewed apps allow 500 connected users.</li>
-            <li><b>Cloudinary</b> · A real media CDN, great for streaming MP4s and photos.
-              Limits: needs the deployed site (the serverless helper); 25 GB on the free plan.</li>
-            <li><b>Google Drive</b> · Photos inline; videos play through Drive's embedded
-              player inside Vaultmall. Limits: you must be signed into Google in this
-              browser; no Vaultmux, so playback quality choices are Drive's.</li>
-            <li><b>MEGA</b> · End-to-end encrypted; files decrypt in your browser. Limits:
-              best for smaller folders and photos; whole files decrypt before video plays.</li>
-          </ul>
-        </section>
-
-        <section class="setcard">
-          <h3 class="setcard-title">Metadata keys</h3>
-          <ul class="help-list">
-            <li><b>TMDb key</b> (required for Cinema): free at
-              <code>themoviedb.org</code> → Settings → API. Powers posters, backdrops,
-              logos, ratings and cast.</li>
-            <li><b>OMDb key</b> (optional): free at <code>omdbapi.com/apikey.aspx</code>,
-              1,000 requests a day. Adds IMDb ratings and Rotten Tomatoes scores to
-              title pages. Without it those two tiles read n/a.</li>
-            <li>Both live in Settings → nothing to reconfigure per device; they sync
-              with your account.</li>
-          </ul>
-        </section>
-
-      </div>
-    </main>
+    </div>
 
     <!-- selection action bar -->
     <div id="selectbar" class="selectbar hidden">

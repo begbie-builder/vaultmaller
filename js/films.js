@@ -194,9 +194,9 @@ export function loadFilmStore(uid) {
   try {
     const raw = localStorage.getItem(KEY(uid));
     const d = raw ? JSON.parse(raw) : {};
-    return { matches: d.matches || {}, include: d.include || [], exclude: d.exclude || [] };
+    return { matches: d.matches || {}, include: d.include || [], exclude: d.exclude || [], favs: d.favs || [] };
   } catch {
-    return { matches: {}, include: [], exclude: [] };
+    return { matches: {}, include: [], exclude: [], favs: [] };
   }
 }
 

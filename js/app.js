@@ -1,8 +1,9 @@
 // ============================================================
 //  Vaultmall — main application
-//  Two cores, one house: PHOTOS (the personal vault, light like
-//  a printed archive) and FILMS (the private cinema, dark like
-//  a screening room), stitched together by SOURCES.
+//  Cinema first: one floating frame, a sidebar, and a category
+//  picker that swaps between MOVIES / TV SHOWS / PHOTOS /
+//  SOURCES. Favorites, resume points and notifications ride
+//  along with the account.
 // ============================================================
 import { isConfigured } from "./firebase-config.js";
 import { providerList, getProvider } from "./storage/registry.js";
@@ -35,17 +36,24 @@ const state = {
   bySource: {},
   media: [],
   needsReconnect: {},
-  env: "photos", // photos | films | sources
+  // movies | tv | favorites | recent | trending | photos | sources | settings | help
+  env: "movies",
+  genre: "All",
   search: "",
   authMode: "login",
+  notifs: [],
 
   photos: { mode: "timeline", type: "all", albumId: null, selecting: false, selected: new Set() },
   albums: [],
   _visible: [],
 
-  films: { store: { matches: {}, include: [], exclude: [] }, matching: false },
+  films: { store: { matches: {}, include: [], exclude: [], favs: [] }, matching: false },
   meta: { tmdb: "", omdb: "" },
 };
+
+// which envs render inside the cinema section
+const CINEMA_ENVS = ["movies", "tv", "favorites", "recent", "trending"];
+const CAT_LABELS = { movies: "Movies", tv: "TV Shows", photos: "Photos", sources: "Sources" };
 
 // ---- Account sync ----
 // Everything personal (connections, keys, matches, albums, avatar,
@@ -183,7 +191,7 @@ window.addEventListener("DOMContentLoaded", () => {
   bootFirebase();
 
   if (location.hash.includes("debug")) {
-    window.__vm = { state, refreshEnv, setEnv, enterApp, renderPhotos, renderFilms, renderSources };
+    window.__vm = { state, refreshEnv, setEnv, enterApp, renderPhotos, renderCinema, renderSources };
   }
 });
 
@@ -310,17 +318,19 @@ function enterApp() {
   renderAvatar();
   state.photos.mode = getSettings().defaultView;
   $("#settings-username").textContent = name;
-  setEnv("photos");
+  loadNotifs();
+  setEnv("movies");
   loadAllMedia();
 }
 
 function wireAppUI() {
-  $("#brand-home").addEventListener("click", () => setEnv("photos"));
+  $("#brand-home").addEventListener("click", () => setEnv("movies"));
   wireAvatar();
   wireUserMenu();
+  wireCatPicker();
+  wireNotifs();
 
-  $$(".envtab").forEach((t) => t.addEventListener("click", () => setEnv(t.dataset.env)));
-  window.addEventListener("resize", positionEnvInk);
+  $$(".snav-item").forEach((b) => b.addEventListener("click", () => setEnv(b.dataset.nav)));
 
   document.addEventListener("click", (e) => {
     const go = e.target.closest("[data-goto]");
@@ -329,8 +339,21 @@ function wireAppUI() {
 
   $("#search-input").addEventListener("input", (e) => {
     state.search = e.target.value.trim().toLowerCase();
+    $("#search-clear").classList.toggle("hidden", !state.search);
     refreshEnv();
   });
+  $("#search-clear").addEventListener("click", () => {
+    $("#search-input").value = "";
+    state.search = "";
+    hide("#search-clear");
+    refreshEnv();
+    $("#search-input").focus();
+  });
+
+  // genre chip rail arrows
+  const chips = $("#chips");
+  $("#chips-prev").addEventListener("click", () => chips.scrollBy({ left: -chips.clientWidth * 0.7, behavior: "smooth" }));
+  $("#chips-next").addEventListener("click", () => chips.scrollBy({ left: chips.clientWidth * 0.7, behavior: "smooth" }));
 
   // Photos toolbar
   wireSwitch($("#ph-mode"), (v) => { state.photos.mode = v; state.photos.albumId = null; renderPhotos(); });
@@ -386,7 +409,7 @@ function wireAppUI() {
 
   $("#reset-matches-btn").addEventListener("click", () => {
     if (!confirm("Clear every film match and let TMDb try again?")) return;
-    state.films.store = { matches: {}, include: state.films.store.include, exclude: state.films.store.exclude };
+    state.films.store = { ...state.films.store, matches: {} };
     F.saveFilmStore(state.user.uid, state.films.store);
     pushSync();
     toast("Matches cleared", "Open Cinema to re-identify.", "ok");
@@ -452,29 +475,29 @@ function wireAppUI() {
     toast("Metadata keys saved", state.meta.tmdb ? "Films will now identify themselves." : "TMDb key removed.", "ok");
   });
 
-  // Hero controls
-  $("#hero-prev").addEventListener("click", () => stepHero(-1));
-  $("#hero-next").addEventListener("click", () => stepHero(1));
-
   // Match modal search
   $("#match-form").addEventListener("submit", (e) => { e.preventDefault(); runMatchSearch(); });
 }
 
 function wireUserMenu() {
+  const chip = $(".userchip");
   const btn = $("#user-menu-btn");
   const menu = $("#user-menu");
+  const sync = () => chip.classList.toggle("open", !menu.classList.contains("hidden"));
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     menu.classList.toggle("hidden");
+    sync();
   });
   document.addEventListener("click", (e) => {
-    if (!menu.classList.contains("hidden") && !menu.contains(e.target)) menu.classList.add("hidden");
+    if (!menu.classList.contains("hidden") && !menu.contains(e.target)) { menu.classList.add("hidden"); sync(); }
   });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") menu.classList.add("hidden"); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { menu.classList.add("hidden"); sync(); } });
   menu.addEventListener("click", (e) => {
     const item = e.target.closest("[data-menu]");
     if (!item) return;
     menu.classList.add("hidden");
+    sync();
     if (item.dataset.menu === "settings") setEnv("settings");
     else if (item.dataset.menu === "help") setEnv("help");
     else if (item.dataset.menu === "photo") $("#avatar-input").click();
@@ -485,25 +508,124 @@ function wireUserMenu() {
 function setEnv(env) {
   state.env = env;
   document.body.dataset.env = env;
-  $$(".envtab").forEach((t) => t.classList.toggle("is-active", t.dataset.env === env));
-  positionEnvInk();
-  ["photos", "films", "sources", "settings", "help"].forEach((e) => {
+
+  // section visibility: all cinema-flavoured envs share one section
+  const section = CINEMA_ENVS.includes(env) ? "cinema" : env;
+  ["cinema", "photos", "sources", "settings", "help"].forEach((e) => {
     const sec = $(`#env-${e}`);
-    if (e === env) { sec.classList.remove("hidden"); sec.style.animation = "none"; void sec.offsetWidth; sec.style.animation = ""; }
+    if (e === section) { sec.classList.remove("hidden"); sec.style.animation = "none"; void sec.offsetWidth; sec.style.animation = ""; }
     else sec.classList.add("hidden");
   });
+
+  // category picker mirrors the env when it maps to one
+  const cat = env === "tv" ? "tv" : env === "photos" ? "photos" : env === "sources" ? "sources" : "movies";
+  $("#cat-label").textContent = CAT_LABELS[cat];
+  $$("#cat-menu button").forEach((b) => b.classList.toggle("is-active", b.dataset.cat === cat));
+
+  // sidebar active state: movies+tv are both "Home"
+  const nav = env === "tv" || env === "photos" || env === "sources" ? "movies" : env;
+  $$(".snav-item").forEach((b) => b.classList.toggle("is-active", b.dataset.nav === nav && CINEMA_ENVS.concat("settings", "help").includes(env)));
+
   exitSelectMode();
   requestAnimationFrame(repositionSwitches);
   refreshEnv();
 }
 
-function positionEnvInk() {
-  const ink = $("#envink");
-  if (!ink) return;
-  const active = $(".envtab.is-active");
-  if (!active) { ink.style.width = "0px"; return; }
-  ink.style.width = active.offsetWidth + "px";
-  ink.style.transform = `translateX(${active.offsetLeft}px)`;
+function wireCatPicker() {
+  const cat = $("#catpick");
+  const btn = $("#cat-btn");
+  const menu = $("#cat-menu");
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    menu.classList.toggle("hidden");
+    cat.classList.toggle("open", !menu.classList.contains("hidden"));
+  });
+  document.addEventListener("click", (e) => {
+    if (!menu.classList.contains("hidden") && !cat.contains(e.target)) {
+      menu.classList.add("hidden");
+      cat.classList.remove("open");
+    }
+  });
+  menu.addEventListener("click", (e) => {
+    const item = e.target.closest("[data-cat]");
+    if (!item) return;
+    menu.classList.add("hidden");
+    cat.classList.remove("open");
+    setEnv(item.dataset.cat);
+  });
+}
+
+// ============================================================
+//  Notifications — errors and events, collected under the bell
+// ============================================================
+const notifKey = (uid) => `vaultmall:notifs:${uid}`;
+function loadNotifs() {
+  try { state.notifs = JSON.parse(localStorage.getItem(notifKey(state.user.uid))) || []; }
+  catch { state.notifs = []; }
+  renderNotifDot();
+}
+function saveNotifs() {
+  if (state.user) localStorage.setItem(notifKey(state.user.uid), JSON.stringify(state.notifs.slice(0, 50)));
+}
+function notify(title, msg, kind) {
+  state.notifs.unshift({ title, msg: msg || "", kind: kind || "", at: Date.now(), read: false });
+  state.notifs = state.notifs.slice(0, 50);
+  saveNotifs();
+  renderNotifDot();
+  const btn = $("#notif-btn");
+  if (btn && kind === "err") {
+    btn.classList.remove("ringing"); void btn.offsetWidth; btn.classList.add("ringing");
+  }
+  if (!$("#notif-panel").classList.contains("hidden")) renderNotifList();
+}
+function renderNotifDot() {
+  const unread = state.notifs.some((n) => !n.read);
+  $("#notif-dot").classList.toggle("hidden", !unread);
+}
+function timeAgo(t) {
+  const s = Math.max(1, Math.floor((Date.now() - t) / 1000));
+  if (s < 60) return `${s}S`;
+  if (s < 3600) return `${Math.floor(s / 60)}M`;
+  if (s < 86400) return `${Math.floor(s / 3600)}H`;
+  return `${Math.floor(s / 86400)}D`;
+}
+function renderNotifList() {
+  const box = $("#notif-list");
+  box.innerHTML = "";
+  if (!state.notifs.length) {
+    box.appendChild(el("div", "notif-empty", "All quiet. Errors and events will land here."));
+    return;
+  }
+  state.notifs.forEach((n) => {
+    box.appendChild(el("div", `notif-item ${n.kind}`, `
+      <span class="notif-kind"></span>
+      <span class="notif-body"><b>${escapeHtml(n.title)}</b>${n.msg ? `<span>${escapeHtml(n.msg)}</span>` : ""}</span>
+      <span class="notif-time">${timeAgo(n.at)}</span>`));
+  });
+}
+function wireNotifs() {
+  const btn = $("#notif-btn");
+  const panel = $("#notif-panel");
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const opening = panel.classList.contains("hidden");
+    panel.classList.toggle("hidden");
+    if (opening) {
+      renderNotifList();
+      state.notifs.forEach((n) => { n.read = true; });
+      saveNotifs();
+      renderNotifDot();
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (!panel.classList.contains("hidden") && !panel.contains(e.target) && e.target !== btn) panel.classList.add("hidden");
+  });
+  $("#notif-clear").addEventListener("click", () => {
+    state.notifs = [];
+    saveNotifs();
+    renderNotifDot();
+    renderNotifList();
+  });
 }
 
 function wireSwitch(root, onChange) {
@@ -514,9 +636,6 @@ function wireSwitch(root, onChange) {
     if (a && ink && a.offsetWidth) {
       ink.style.width = a.offsetWidth + "px";
       ink.style.transform = `translateX(${a.offsetLeft}px)`;
-      const opts = $$(".sw-opt", root);
-      ink.classList.toggle("at-start", a === opts[0]);
-      ink.classList.toggle("at-end", a === opts[opts.length - 1]);
     }
   };
   root._position = position; // re-measured whenever the env becomes visible
@@ -537,10 +656,11 @@ function repositionSwitches() {
 
 function refreshEnv() {
   if (state.env === "photos") renderPhotos();
-  else if (state.env === "films") renderFilms();
+  else if (CINEMA_ENVS.includes(state.env)) renderCinema();
   else if (state.env === "settings") renderSettings();
   else if (state.env === "help") { /* static page */ }
   else renderSources();
+  renderContinue();
 }
 
 function renderSettings() {
@@ -865,172 +985,340 @@ function buildLibrary(items) {
   return entries;
 }
 
-function renderFilms() {
-  const rows = $("#films-rows");
-  rows.innerHTML = "";
-  const candidates = filmItems();
+// ---- favorites (kept in the synced film store) ----
+function isFav(key) { return (state.films.store.favs || []).includes(key); }
+function toggleFav(key) {
   const fs = state.films.store;
+  fs.favs = fs.favs || [];
+  const i = fs.favs.indexOf(key);
+  if (i >= 0) fs.favs.splice(i, 1);
+  else fs.favs.push(key);
+  F.saveFilmStore(state.user.uid, fs);
+  pushSync();
+  return i < 0;
+}
+
+function fmtRuntime(min) {
+  if (!min) return "";
+  const h = Math.floor(min / 60), m = min % 60;
+  return h ? `${h}h ${m ? m + "min" : ""}`.trim() : `${m}min`;
+}
+
+const CIN_TITLES = { favorites: "Favorites", recent: "Recently added", trending: "Trending" };
+
+function renderCinema() {
+  const grid = $("#films-grid");
+  grid.innerHTML = "";
+  const env = state.env;
+  const candidates = filmItems();
+
+  // page heading for the sidebar views
+  const headed = !!CIN_TITLES[env];
+  $("#cin-head").classList.toggle("hidden", !headed);
+  if (headed) $("#cin-title").textContent = CIN_TITLES[env];
 
   if (!candidates.length) {
-    hide("#films-hero"); hide("#films-matchbar");
+    hide("#films-hero"); hide("#films-matchbar"); hide("#chips-row");
     $("#films-setup-msg").textContent = Object.keys(state.profile.connections || {}).length
       ? "Nothing film-shaped yet. Name things like Title (2019).mkv or keep shows in Season folders and they will find their own way here."
       : "Connect a source, then add your free TMDb key. Your pile of videos becomes an actual library.";
     show("#films-setup");
+    if (headed) $("#cin-count").textContent = "0 TITLES";
     return;
   }
   hide("#films-setup");
 
-  const enriched = buildLibrary(candidates);
+  const all = buildLibrary(candidates);
 
+  // a one-line nudge when there's no TMDb key yet
+  grid.parentElement.querySelectorAll(".tmdb-note").forEach((n) => n.remove());
   if (!state.meta.tmdb) {
-    hide("#films-hero");
-    const note = el("div", "matchbar", `<span class="mono">ADD A FREE TMDB KEY IN SOURCES AND THESE ${enriched.length} TITLES GET POSTERS, RATINGS AND CAST.</span>`);
-    rows.appendChild(note);
-  } else {
-    autoMatch(enriched);
+    grid.parentElement.insertBefore(
+      el("div", "matchbar tmdb-note",
+        `<span class="mono">ADD A FREE TMDB KEY IN SOURCES AND THESE ${all.length} TITLES GET POSTERS, RATINGS AND CAST.</span>`),
+      grid);
+  } else if (env === "movies" || env === "tv") {
+    autoMatch(all);
   }
 
-  // Search mode: one flat row of results
+  // the working set for this view
+  let entries;
+  if (env === "tv") entries = all.filter((e) => e.series);
+  else if (env === "movies") entries = all.filter((e) => !e.series);
+  else if (env === "favorites") entries = all.filter((e) => isFav(e.key));
+  else if (env === "trending") entries = all.filter((e) => e.match).sort((a, b) => b.match.vote - a.match.vote);
+  else entries = [...all].sort((a, b) => (b.date || 0) - (a.date || 0)); // recent
+
+  // search filters the set, hides the hero
   if (state.search) {
-    const hits = enriched.filter((e) =>
-      ((e.match ? e.match.title : e.title) || "").toLowerCase().includes(state.search));
+    entries = entries.filter((e) =>
+      ((e.match ? e.match.title : e.title) || "").toLowerCase().includes(state.search) ||
+      ((e.title || "")).toLowerCase().includes(state.search));
+  }
+
+  // hero: only on the two big shelves, only when not searching
+  if ((env === "movies" || env === "tv") && !state.search) {
+    renderHero(entries.filter((e) => e.match && e.match.backdrop)
+      .sort((a, b) => b.match.vote - a.match.vote).slice(0, 5));
+  } else {
+    clearInterval(heroTimer);
     hide("#films-hero");
-    rows.appendChild(buildFilmRow(`Results for “${state.search}”`, hits));
+  }
+
+  // genre chips from the working set
+  renderChips(entries);
+  let shown = entries;
+  if (state.genre !== "All") {
+    shown = entries.filter((e) => e.match && (e.match.genres || []).includes(state.genre));
+  }
+  // default ordering on the shelves: newest first, unmatched last
+  if (env === "movies" || env === "tv") {
+    shown = [...shown].sort((a, b) => (!!b.match - !!a.match) || (b.date || 0) - (a.date || 0));
+  }
+
+  if (headed) $("#cin-count").textContent = `${shown.length} TITLE${shown.length === 1 ? "" : "S"}`;
+
+  if (!shown.length) {
+    grid.appendChild(el("div", "bigempty", `<div class="bigempty-word">${env === "favorites" ? "EMPTY" : "QUIET"}</div>
+      <p>${env === "favorites" ? "Nothing hearted yet. The ♥ lives on the hero and on every title page." : "Nothing matches this view."}</p>`));
     return;
   }
 
-  renderHero(enriched.filter((e) => e.match && e.match.backdrop));
-
-  const recent = [...enriched].sort((a, b) => (b.date || 0) - (a.date || 0));
-  rows.appendChild(buildFilmRow("Recently added", recent));
-
-  const shows = enriched.filter((e) => e.series);
-  if (shows.length) rows.appendChild(buildFilmRow("TV Shows", shows));
-
-  // Genre rows from matched titles
-  const byGenre = new Map();
-  for (const e of enriched) {
-    if (!e.match) continue;
-    for (const g of e.match.genres || []) {
-      if (!byGenre.has(g)) byGenre.set(g, []);
-      byGenre.get(g).push(e);
-    }
-  }
-  [...byGenre.entries()]
-    .filter(([, list]) => list.length >= 2)
-    .sort((a, b) => b[1].length - a[1].length)
-    .slice(0, 4)
-    .forEach(([g, list]) => rows.appendChild(buildFilmRow(g, list)));
-
-  const unmatched = enriched.filter((e) => !e.match);
-  if (unmatched.length) rows.appendChild(buildFilmRow("Needs identification", unmatched, true));
-}
-
-function buildFilmRow(title, entries, isUnmatched = false) {
-  const row = el("section", "filmrow");
-  const head = el("div", "filmrow-head",
-    `<span class="filmrow-title">${escapeHtml(title)}</span><span class="filmrow-rule"></span>`);
-  const nav = el("div", "filmrow-nav");
-  const prev = el("button", "rownav", "←");
-  const next = el("button", "rownav", "→");
-  nav.append(prev, next);
-  head.appendChild(nav);
-  row.appendChild(head);
-
-  const strip = el("div", "filmstrip");
-  prev.addEventListener("click", () => strip.scrollBy({ left: -strip.clientWidth * 0.8, behavior: "smooth" }));
-  next.addEventListener("click", () => strip.scrollBy({ left: strip.clientWidth * 0.8, behavior: "smooth" }));
-
-  entries.forEach((e, i) => {
-    const card = buildPoster(e, i, isUnmatched);
-    strip.appendChild(card);
+  shown.forEach((e, i) => {
+    const card = buildPoster(e, i);
+    grid.appendChild(card);
     requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add("in")));
   });
-  if (!entries.length) strip.appendChild(el("p", "sheet-sub", "Nothing here."));
-  row.appendChild(strip);
-  return row;
 }
 
-function buildPoster(entry, i, isUnmatched) {
+function renderChips(entries) {
+  const row = $("#chips-row");
+  const box = $("#chips");
+  const genres = new Map();
+  for (const e of entries) {
+    if (!e.match) continue;
+    for (const g of e.match.genres || []) genres.set(g, (genres.get(g) || 0) + 1);
+  }
+  const names = [...genres.entries()].sort((a, b) => b[1] - a[1]).map(([g]) => g);
+  if (!names.length) { row.classList.add("hidden"); state.genre = "All"; return; }
+  row.classList.remove("hidden");
+  if (state.genre !== "All" && !names.includes(state.genre)) state.genre = "All";
+  box.innerHTML = "";
+  ["All", ...names].forEach((g) => {
+    const chip = el("button", "chip" + (state.genre === g ? " is-active" : ""), escapeHtml(g));
+    chip.addEventListener("click", () => {
+      state.genre = g;
+      $$(".chip", box).forEach((c) => c.classList.toggle("is-active", c === chip));
+      renderCinema();
+    });
+    box.appendChild(chip);
+  });
+}
+
+function buildPoster(entry, i) {
   const { match } = entry;
-  const c = el("article", "poster");
-  c.style.setProperty("--d", Math.min(i, 12));
+  const c = el("article", "pcard");
+  c.style.setProperty("--d", Math.min(i, 16));
   const title = match ? match.title : (entry.title || (entry.item ? entry.item.title : "?"));
   const year = match ? match.year : (entry.year || "");
-  const right = match
-    ? `<span class="poster-score">★ ${match.vote.toFixed(1)}</span>`
-    : entry.series
-      ? `<span>${entry.episodes.length} EP</span>`
-      : `<span>${escapeHtml((entry.item && entry.item.sub) || "")}</span>`;
   const art = match && match.poster
     ? `<img loading="lazy" src="${F.posterUrl(match.poster)}" alt="">`
-    : `<div class="poster-fallback"><span class="pf-big">${escapeHtml((title || "?").slice(0, 1).toUpperCase())}</span><span class="pf-title">${escapeHtml(title)}</span></div>`;
+    : `<div class="pcard-fallback"><span class="pf-big">${escapeHtml((title || "?").slice(0, 1).toUpperCase())}</span><span class="pf-title">${escapeHtml(title)}</span></div>`;
+  const sub = match
+    ? `${year || "·"} · <span class="star">★</span><span class="stat">${match.vote.toFixed(1)}</span>`
+    : entry.series
+      ? `${entry.episodes.length} episodes`
+      : `${year || "unidentified"}`;
   c.innerHTML = `
-    ${!match ? `<span class="poster-flag">${isUnmatched ? "FIX MATCH" : "UNMATCHED"}</span>` : ""}
-    ${entry.series && match ? `<span class="poster-flag series">SERIES · ${entry.episodes.length} EP</span>` : ""}
-    <div class="poster-art">${art}</div>
-    <div class="poster-strip">
-      <span class="poster-name">${escapeHtml(title)}</span>
-      <span class="poster-sub"><span>${year || "·"}</span>${right}</span>
-    </div>`;
+    <div class="pcard-art">
+      ${!match ? `<span class="pcard-flag">FIX MATCH</span>` : ""}
+      ${entry.series && match ? `<span class="pcard-flag series">SERIES · ${entry.episodes.length} EP</span>` : ""}
+      ${art}
+      <div class="pcard-hover"><span><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8 5.9c0-1.2 1.3-1.9 2.3-1.3l9.2 6.1c.9.6.9 1.9 0 2.5l-9.2 6.1c-1 .7-2.3-.1-2.3-1.3z"/></svg></span></div>
+    </div>
+    <div class="pcard-name">${escapeHtml(title)}</div>
+    <div class="pcard-sub">${sub}</div>`;
   c.addEventListener("click", () => (match ? openFilmDetail(entry, match) : openMatchModal(entry)));
   return c;
 }
 
-// ---- hero ----
+// ---- hero: the marquee deck with peeking next cards ----
+let heroEntries = [];
 function renderHero(entries) {
   const hero = $("#films-hero");
-  const track = $("#hero-track");
+  const stack = $("#hero-stack");
   const dots = $("#hero-dots");
   clearInterval(heroTimer);
+  heroEntries = entries;
   if (!entries.length) { hero.classList.add("hidden"); return; }
   hero.classList.remove("hidden");
 
-  const top = [...entries].sort((a, b) => b.match.vote - a.match.vote).slice(0, 5);
-  track.innerHTML = "";
+  stack.innerHTML = "";
   dots.innerHTML = "";
-  top.forEach((entry, i) => {
+  entries.forEach((entry, i) => {
     const { match } = entry;
-    const slide = el("div", "hero-slide");
-    slide.innerHTML = `
-      <div class="hero-copy">
-        <span class="hero-kicker mono">FEATURED · ${escapeHtml(entry.series ? "SERIES" : (match.genres || [])[0] || "FILM").toUpperCase()}</span>
-        <h3 class="hero-title">${escapeHtml(match.title)}</h3>
-        <div class="hero-meta">
-          <span>${match.year || ""}</span><span class="sep"></span>
-          <span>★ ${match.vote.toFixed(1)} TMDB</span>
-          ${entry.series ? `<span class="sep"></span><span>${entry.episodes.length} EPISODES</span>` : match.runtime ? `<span class="sep"></span><span>${match.runtime} MIN</span>` : ""}
-        </div>
-        <p class="hero-over">${escapeHtml(match.overview)}</p>
-        <div class="hero-actions"></div>
+    const card = el("article", "hs-card");
+    const tags = [];
+    if (match.runtime) tags.push(fmtRuntime(match.runtime));
+    if ((match.genres || [])[0]) tags.push(match.genres[0]);
+    tags.push(entry.series ? "Series" : "Movie");
+    if (match.year) tags.push(match.year);
+    card.innerHTML = `
+      <img class="hs-art" src="${F.backdropUrl(match.backdrop)}" alt="">
+      <div class="hs-scrim"></div>
+      <div class="hs-tags">
+        ${tags.map((t, ti) => `<span class="hs-tag" style="--d:${ti}">${escapeHtml(String(t))}</span>`).join("")}
+        <span class="hs-tag star" style="--d:${tags.length}">★ ${match.vote.toFixed(1)}</span>
       </div>
-      <div class="hero-art"><img src="${F.backdropUrl(match.backdrop)}" alt=""></div>`;
-    const actions = $(".hero-actions", slide);
-    const play = el("button", "btn btn-accent", "▶&nbsp; Play");
-    play.addEventListener("click", () => playFilm(entry.series ? entry.episodes[0].item : entry.item));
-    const details = el("button", "btn btn-ghost", "Details");
-    details.addEventListener("click", () => openFilmDetail(entry, match));
-    actions.append(play, details);
-    track.appendChild(slide);
+      <div class="hs-bottom">
+        <button class="hs-play" aria-label="Play">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5.9c0-1.2 1.3-1.9 2.3-1.3l9.2 6.1c.9.6.9 1.9 0 2.5l-9.2 6.1c-1 .7-2.3-.1-2.3-1.3z"/></svg>
+        </button>
+        <div class="hs-titlebox">
+          <b>${escapeHtml(match.title)}</b>
+          <span>${entry.series ? `${entry.episodes.length} episodes` : "Play now"}${match.year ? ` · ${match.year}` : ""}</span>
+        </div>
+      </div>
+      <button class="hs-fav${isFav(entry.key) ? " faved" : ""}" aria-label="Favorite">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="${isFav(entry.key) ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 20.5s-7.2-4.4-9.3-8.6C1.2 8.7 3 5.3 6.4 5.3c2 0 3.6 1.1 4.6 2.6h2c1-1.5 2.6-2.6 4.6-2.6 3.4 0 5.2 3.4 3.7 6.6-2.1 4.2-9.3 8.6-9.3 8.6z"/></svg>
+      </button>`;
+    $(".hs-play", card).addEventListener("click", (e) => {
+      e.stopPropagation();
+      playFilm(entry.series ? entry.episodes[0].item : entry.item);
+    });
+    $(".hs-titlebox", card).addEventListener("click", () => openFilmDetail(entry, match));
+    $(".hs-fav", card).addEventListener("click", (e) => {
+      e.stopPropagation();
+      const on = toggleFav(entry.key);
+      const b = e.currentTarget;
+      b.classList.toggle("faved", on);
+      $("svg", b).setAttribute("fill", on ? "currentColor" : "none");
+      if (state.env === "favorites") renderCinema();
+    });
+    card.addEventListener("click", () => {
+      // clicking a peeking card brings it forward
+      if (!card.classList.contains("pos-0")) goHero(i);
+    });
+    stack.appendChild(card);
 
     const dot = el("button", "hero-dot" + (i === 0 ? " is-active" : ""));
+    dot.setAttribute("aria-label", `Slide ${i + 1}`);
     dot.addEventListener("click", () => goHero(i));
     dots.appendChild(dot);
   });
+
+  // pause the carousel while the pointer is on it
+  stack.addEventListener("mouseenter", () => clearInterval(heroTimer));
+  stack.addEventListener("mouseleave", () => {
+    clearInterval(heroTimer);
+    heroTimer = setInterval(() => stepHero(1), 8000);
+  });
+
   heroIndex = 0;
-  goHero(0);
+  layoutHero();
   heroTimer = setInterval(() => stepHero(1), 8000);
 }
-function goHero(i) {
-  const track = $("#hero-track");
-  const n = track.children.length;
-  if (!n) return;
-  heroIndex = ((i % n) + n) % n;
-  track.style.transform = `translateX(-${heroIndex * 100}%)`;
+function layoutHero() {
+  const stack = $("#hero-stack");
+  const n = heroEntries.length;
+  $$(".hs-card", stack).forEach((c, i) => {
+    const rel = ((i - heroIndex) % n + n) % n;
+    c.classList.remove("pos-0", "pos-1", "pos-2", "pos-3");
+    c.classList.add("pos-" + Math.min(rel, 3));
+  });
   $$("#hero-dots .hero-dot").forEach((d, di) => d.classList.toggle("is-active", di === heroIndex));
 }
+function goHero(i) {
+  const n = heroEntries.length;
+  if (!n) return;
+  heroIndex = ((i % n) + n) % n;
+  layoutHero();
+}
 function stepHero(dir) { goHero(heroIndex + dir); }
+
+// ============================================================
+//  Continue watching — resume points in the sidebar
+// ============================================================
+const progressKey = (uid) => `vaultmall:progress:${uid}`;
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(progressKey(state.user.uid))) || {}; }
+  catch { return {}; }
+}
+function saveProgressStore(all) {
+  localStorage.setItem(progressKey(state.user.uid), JSON.stringify(all));
+}
+
+// Watch a <video> element and remember where the viewer got to.
+// Clips under 3 minutes don't need resume points.
+function attachProgress(video, m) {
+  if (!state.user || !m || !m.id) return;
+  const saved = loadProgress()[m.id];
+  if (saved && saved.t > 30 && saved.pct < 95) {
+    const resume = () => {
+      if (video.duration && isFinite(video.duration) && saved.t < video.duration - 15) video.currentTime = saved.t;
+    };
+    if (video.readyState >= 1) resume(); // metadata already in (Vaultmux path)
+    else video.addEventListener("loadedmetadata", resume, { once: true });
+  }
+  let last = 0;
+  video.addEventListener("timeupdate", () => {
+    const now = Date.now();
+    if (now - last < 5000) return;
+    last = now;
+    const d = video.duration;
+    if (!d || !isFinite(d) || d < 180) return;
+    const all = loadProgress();
+    const pct = Math.round((video.currentTime / d) * 100);
+    if (pct >= 96) delete all[m.id];
+    else all[m.id] = { id: m.id, title: m.title, t: Math.floor(video.currentTime), d: Math.floor(d), pct, at: now };
+    saveProgressStore(all);
+    renderContinue();
+  });
+}
+
+function renderContinue() {
+  const block = $("#continue-block");
+  const box = $("#continue-list");
+  if (!block || !state.user) return;
+  const rows = Object.values(loadProgress()).sort((a, b) => b.at - a.at).slice(0, 4);
+  block.classList.toggle("hidden", !rows.length);
+  box.innerHTML = "";
+  if (!rows.length) return;
+
+  // borrow titles and backdrops from the matched library
+  const byItem = new Map();
+  for (const e of buildLibrary(filmItems())) {
+    if (e.series) e.episodes.forEach((ep) => byItem.set(ep.item.id, { e, ep }));
+    else byItem.set(e.item.id, { e });
+  }
+
+  rows.forEach((p, i) => {
+    const hit = byItem.get(p.id);
+    const match = hit && hit.e.match;
+    const title = match ? match.title : p.title;
+    const sub = hit && hit.ep ? `S${hit.ep.season}.E${hit.ep.episode}` : fmtRuntime(Math.round((p.d - p.t) / 60)) + " left";
+    const art = match && match.backdrop ? `<img loading="lazy" src="${F.backdropUrl(match.backdrop, "w780")}" alt="">`
+      : `<span class="ccard-noart">${escapeHtml((title || "?").slice(0, 1).toUpperCase())}</span>`;
+    const card = el("button", "ccard", `
+      ${art}
+      <span class="ccard-scrim"></span>
+      <span class="ccard-title">${escapeHtml(title)}</span>
+      <span class="ccard-row">
+        <span class="ccard-play">▶</span>
+        <span class="ccard-pill">${escapeHtml(sub)}</span>
+        <span class="ccard-pill pct">${p.pct}%</span>
+      </span>
+      <span class="ccard-bar"><i style="width:${p.pct}%"></i></span>`);
+    card.style.setProperty("--d", i);
+    card.addEventListener("click", () => {
+      const item = state.media.find((x) => x.id === p.id);
+      if (item) playFilm(item);
+      else toast("Can't resume", "That file's source isn't loaded right now.", "err");
+    });
+    box.appendChild(card);
+    requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add("in")));
+  });
+}
 
 // ---- auto matching ----
 async function autoMatch(entries) {
@@ -1067,7 +1355,7 @@ async function autoMatch(entries) {
   }
   $("#matchbar-fill").style.width = "100%";
   state.films.matching = false;
-  setTimeout(() => { hide("#films-matchbar"); if (state.env === "films") renderFilms(); }, 400);
+  setTimeout(() => { hide("#films-matchbar"); if (CINEMA_ENVS.includes(state.env)) renderCinema(); renderContinue(); }, 400);
 }
 
 // A broken OMDb key fails on every title; complain once, not per film.
@@ -1186,6 +1474,14 @@ function renderFilmSheet(entry, match) {
   $(".fs-playrow", sheet).appendChild(play);
 
   const actions = $(".fs-actionrow", sheet);
+  const favLabel = () => (isFav(entry.key) ? "♥&nbsp; Favorited" : "♡&nbsp; Favorite");
+  const fav = el("button", "btn btn-ghost-ivory btn-sm", favLabel());
+  fav.addEventListener("click", () => {
+    toggleFav(entry.key);
+    fav.innerHTML = favLabel();
+    if (CINEMA_ENVS.includes(state.env)) renderCinema();
+  });
+  actions.appendChild(fav);
   if (item.fullUrl && !item.external && !item.embed) {
     const dl = el("a", "btn btn-ghost-ivory btn-sm", "↓&nbsp; Download");
     dl.href = item.fullUrl;
@@ -1673,6 +1969,7 @@ async function renderLightbox() {
     stage.innerHTML = `<a class="btn btn-accent" href="${m.fullUrl}" target="_blank" rel="noopener">Open in ${(getProvider(m.source) || {}).name || "source"} →</a>`;
   } else if (m.type === "video") {
     stage.innerHTML = `<video src="${m.fullUrl}" controls ${st.autoplay ? "autoplay" : ""} ${st.loop ? "loop" : ""}></video>`;
+    attachProgress($("video", stage), m);
   } else {
     stage.innerHTML = `<img src="${m.fullUrl}" alt="${escapeHtml(m.title)}">`;
   }
@@ -1699,6 +1996,7 @@ async function playDropboxVideo(stage, m) {
   if (st.loop) vid.loop = true;
   vid.src = m.fullUrl;
   stage.appendChild(vid);
+  attachProgress(vid, m);
 
   const playable = await new Promise((resolve) => {
     const timer = setTimeout(() => resolve(vid.videoWidth > 0), 12000);
@@ -1740,6 +2038,7 @@ async function playViaVaultmux(stage, m, openedFor) {
     activeTransmux = player;
     const info = await player.start();
     if (lightboxIndex !== openedFor) { killTransmux(); return false; }
+    attachProgress(v2, m);
     if (st.autoplay) v2.play().catch(() => { /* gesture rules */ });
     // The subtle brag, once per session.
     if (!sessionStorage.getItem("vaultmall:mux-hello")) {
@@ -1776,11 +2075,12 @@ async function dropboxHandoff(stage, m, openedFor) {
 }
 
 // ============================================================
-//  Toasts
+//  Toasts — errors also land in the notification bell
 // ============================================================
 function toast(title, msg, kind) {
   const t = el("div", `toast ${kind || ""}`,
     `<div class="toast-title">${escapeHtml(title)}</div>${msg ? `<div class="toast-msg">${escapeHtml(msg)}</div>` : ""}`);
   $("#toasts").appendChild(t);
   setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 300); }, 4200);
+  if (kind === "err") notify(title, msg, "err");
 }

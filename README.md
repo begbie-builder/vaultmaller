@@ -8,16 +8,19 @@ translucency. It reads folders straight off your computer, pulls in your
 **Cloudinary** library, and syncs **Google Drive**, **Dropbox**, and **MEGA**.
 Every account is completely separate and private.
 
-**The two cores:**
+**One frame, four categories** — picked from the dropdown next to the search
+bar (the sidebar carries Home, Favorites, Recently added, Trending, Settings
+and Support, plus a live *Continue Watching* rail with resume points):
 
-- 📷 **PHOTOS — the personal vault.** A light, printed-archive feel: strict
-  masonry walls, a timeline grouped by month, albums, and a selection mode.
-- 🎬 **CINEMA — the private screening room.** A dark stage: hero banners,
-  horizontal category rows, TMDb-powered posters, ratings (TMDb / IMDb /
-  Rotten Tomatoes), cast lists — with Jellyfin-style filename matching and a
-  manual "Fix match" override when the guess is wrong. **TV shows too:**
-  episodes named `SxxExx`, or living in `Show Name/Season 2/` folders, fold
-  into one series card with a season-by-season episode list.
+- 🎬 **MOVIES — cinema first.** A marquee hero with the next features peeking
+  in from the right, genre chips, and a TMDb-powered poster grid with ratings
+  (TMDb / IMDb / Rotten Tomatoes), cast lists — Jellyfin-style filename
+  matching with a manual "Fix match" override when the guess is wrong.
+- 📺 **TV SHOWS — same stage, series only.** Episodes named `SxxExx`, or
+  living in `Show Name/Season 2/` folders, fold into one series card with a
+  season-by-season episode list.
+- 📷 **PHOTOS — the personal vault.** Masonry walls, a timeline grouped by
+  month, albums, and a selection mode.
 - 🔌 **SOURCES — the switchboard.** One dashboard aggregating every storage
   link into a unified library, with per-service brand marks and live counts.
 
@@ -268,12 +271,19 @@ origins → Add** your `https://vaultmall.pages.dev` URL. Save.
 
 # 🎬 Using Vaultmall
 
-**PHOTOS** (light, archival):
+Everything lives in one floating frame. The **dropdown next to the search
+bar** switches between Movies, TV Shows, Photos and Sources; the **sidebar**
+holds Home, Favorites (the ♥ on heroes and title pages), Recently added,
+Trending, Settings and Support. **Continue Watching** in the sidebar remembers
+where you stopped in anything longer than a few minutes and resumes it. The
+**bell** collects errors and events so you don't have to catch every toast.
+
+**PHOTOS**:
 - **Timeline** groups everything by month; **Albums** are your own named sets.
 - **Select** turns on selection mode — pick tiles, then *Add to album*.
 - Filter by Photos/Videos; **click any tile** for the lightbox (arrows / `Esc`).
 
-**CINEMA** (dark, cinematic):
+**MOVIES / TV SHOWS**:
 - Videos named like `Title (2019).mkv` or with `SxxExx` land here automatically.
 - **TV shows:** name files `Show.S01E02.mkv`, or keep them in folders like
   `TV/Show Name/Season 1/01 - Pilot.mkv` — Vaultmall reads the season folder and
@@ -385,7 +395,7 @@ Links**. (Local, Cloudinary, Google Drive, Dropbox, and MEGA are fully wired.)
 | Dropbox says token invalid/expired | Generated tokens are short-lived — generate a fresh one and reconnect. |
 | MEGA won't load | Make sure the share link **includes the decryption key**, and keep folders modest (everything decrypts in-browser). |
 | Films aren't getting posters/ratings | Add your TMDb key under Sources → Metadata engine. If a file is misidentified, open it and hit **Fix match**. |
-| A home video ended up in Films | Open it → **Not a film → Photos**. (Anything named with a year or SxxExx is treated as a film by default.) |
+| A home video ended up in Movies | Open it → **Not a film → Photos**. (Anything named with a year or SxxExx is treated as a film by default.) |
 | Settings don't sync across devices | Create the Firestore database and publish `firestore.rules` (Steps 1c–1d). |
 
 ---
