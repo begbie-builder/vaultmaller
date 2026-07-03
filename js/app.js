@@ -1561,6 +1561,14 @@ function disconnectProvider(id) {
 let lightboxIndex = 0;
 let lightboxSolo = false;
 let slideTimer = null;
+let activeTransmux = null; // in-browser MKV→fMP4 player, when engaged
+
+function killTransmux() {
+  if (activeTransmux) {
+    try { activeTransmux.destroy(); } catch { /* already gone */ }
+    activeTransmux = null;
+  }
+}
 
 function openLightbox(i, solo = false) {
   lightboxIndex = i;
@@ -1570,6 +1578,7 @@ function openLightbox(i, solo = false) {
 }
 function closeLightbox() {
   stopSlideshow();
+  killTransmux();
   lightboxSolo = false;
   hide("#lightbox");
   $("#lightbox-stage").innerHTML = "";
@@ -1598,6 +1607,7 @@ function stepLightbox(dir) {
   renderLightbox();
 }
 async function renderLightbox() {
+  killTransmux(); // navigating away from a remuxed stream tears it down
   const items = state._visible || [];
   const m = items[lightboxIndex];
   if (!m) return;
@@ -1672,7 +1682,39 @@ async function playDropboxVideo(stage, m) {
   });
   if (playable || lightboxIndex !== openedFor || $("#lightbox").classList.contains("hidden")) return;
 
-  // The codec beat this browser. Offer the one route that always works.
+  // Tier 2: the browser refused the CONTAINER (Safari + mkv). Rewrap the
+  // untouched compressed stream into fragmented MP4 in the browser and
+  // feed it through Media Source Extensions — hardware decode, no
+  // transcode, full seeking via the file's cue index.
+  if (/\.(mkv|webm)$/i.test(m.title)) {
+    stage.innerHTML = `<div class="lb-loading">REWRAPPING FOR THIS BROWSER…</div>`;
+    try {
+      const { TransmuxPlayer, transmuxSupported } = await import("./player/transmux-player.js");
+      if (transmuxSupported()) {
+        if (lightboxIndex !== openedFor) return;
+        const src = getProvider("dropbox").module.transmuxSource((state.profile.connections || {}).dropbox || {}, m.path);
+        const v2 = document.createElement("video");
+        v2.controls = true;
+        if (st.loop) v2.loop = true;
+        stage.innerHTML = "";
+        stage.appendChild(v2);
+        const player = new TransmuxPlayer(v2, src, {
+          onNote: (n) => toast("Playback", n, ""),
+        });
+        activeTransmux = player;
+        await player.start();
+        if (lightboxIndex !== openedFor) { killTransmux(); return; }
+        if (st.autoplay) v2.play().catch(() => { /* gesture rules */ });
+        return;
+      }
+    } catch (e) {
+      killTransmux();
+      if (lightboxIndex !== openedFor) return;
+      // codec/container genuinely undecodable here → fall through to hand-off
+    }
+  }
+
+  // Tier 3: this hardware/browser can't decode the streams at all.
   stage.innerHTML = `<div class="lb-loading">GETTING A PLAYABLE LINK…</div>`;
   try {
     const link = await getProvider("dropbox").module.videoLink((state.profile.connections || {}).dropbox || {}, m.path);

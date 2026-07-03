@@ -12,6 +12,7 @@
 //  Temporary, streamable links are fetched per file for viewing.
 // ============================================================
 import { dropboxConfig, isDropboxConfigured } from "../firebase-config.js";
+import { HttpRangeSource } from "../player/range-source.js";
 
 const TOKEN_URL = "https://api.dropboxapi.com/oauth2/token";
 const VERIFIER_KEY = "vaultmall:dbx-verifier";
@@ -179,6 +180,20 @@ async function sharedLinkFor(token, path) {
 export async function videoLink(config, path) {
   const token = await accessTokenFor(config);
   return sharedLinkFor(token, path);
+}
+
+// Byte-range source for the in-browser remuxer. Uses the documented
+// content-download endpoint, which answers Range with proper 206,
+// serves CORS (including the OPTIONS preflight that a Range header
+// forces), and takes auth in the URL — no cookies for Safari's ITP
+// to strip. The URL factory re-runs on 401 so expiring tokens get
+// re-minted mid-movie.
+export function transmuxSource(config, path) {
+  return new HttpRangeSource(async () => {
+    const token = await accessTokenFor(config);
+    const arg = encodeURIComponent(JSON.stringify({ path }));
+    return `https://content.dropboxapi.com/2/files/download?arg=${arg}&authorization=${encodeURIComponent("Bearer " + token)}`;
+  });
 }
 
 // config: { refreshToken } (one-click) or { accessToken } (manual fallback)

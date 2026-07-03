@@ -287,10 +287,15 @@ origins → Add** your `https://vaultmall.pages.dev` URL. Save.
   (for shows) a season-by-season episode list.
 - Wrong guess? Open the title → **Fix match** → search TMDb or paste an ID.
 - **Playback:** Local, Cloudinary, MEGA and Dropbox files play in Vaultmall's
-  own viewer whenever the browser can decode them (that covers most files;
-  hardware HEVC support helps for 4K x265). When it can't, Dropbox videos get
-  a one-click hand-off to Dropbox's player, which transcodes anything. Google
-  Drive videos play through Drive's embedded player inside Vaultmall.
+  own viewer whenever the browser can decode them. For Dropbox MKVs the
+  browser refuses (Safari refuses the container outright), Vaultmall now
+  carries its own streaming remuxer: it byte-range-streams the file, unpacks
+  the Matroska container in the browser, rewraps the untouched H.264/HEVC/VP9
+  and AAC streams into fragmented MP4 and plays them through Media Source
+  Extensions — hardware decoding, full seeking, no transcode, no server. If
+  the hardware truly can't decode the stream (or the audio is DTS), you get a
+  one-click hand-off to Dropbox's own transcoding player. Google Drive videos
+  play through Drive's embedded player inside Vaultmall.
 - Not a film at all? **Not a film → Photos** sends it back to the vault.
 
 **SOURCES** (the switchboard):
