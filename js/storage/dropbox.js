@@ -182,18 +182,51 @@ export async function videoLink(config, path) {
   return sharedLinkFor(token, path);
 }
 
-// Byte-range source for the in-browser remuxer. Uses the documented
-// content-download endpoint, which answers Range with proper 206,
-// serves CORS (including the OPTIONS preflight that a Range header
-// forces), and takes auth in the URL — no cookies for Safari's ITP
-// to strip. The URL factory re-runs on 401 so expiring tokens get
-// re-minted mid-movie.
+// Dropbox-API-Arg must be pure ASCII: escape anything above 0x7E.
+function httpHeaderSafeJson(obj) {
+  return JSON.stringify(obj).replace(/[\u007f-\uffff]/g,
+    (c) => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0"));
+}
+
+// Byte-range source for the in-browser remuxer, with two independent
+// network paths:
+//  1. content-download endpoint with HEADER auth (Authorization +
+//     Dropbox-API-Arg), exactly like the official SDK — scoped sl.u.
+//     tokens reject the query-parameter auth style with 401.
+//  2. failover: a fresh temporary link (fully anonymous URL), in case
+//     the API route ever misbehaves for a given file.
+// Both answer Range with 206 and pass the CORS preflight the Range
+// header forces. Targets re-mint once on 401 (token expiry mid-movie).
 export function transmuxSource(config, path) {
-  return new HttpRangeSource(async () => {
+  const api = new HttpRangeSource(async () => ({
+    url: "https://content.dropboxapi.com/2/files/download",
+    headers: {
+      Authorization: "Bearer " + await accessTokenFor(config),
+      "Dropbox-API-Arg": httpHeaderSafeJson({ path }),
+    },
+  }));
+  const tmp = new HttpRangeSource(async () => {
     const token = await accessTokenFor(config);
-    const arg = encodeURIComponent(JSON.stringify({ path }));
-    return `https://content.dropboxapi.com/2/files/download?arg=${arg}&authorization=${encodeURIComponent("Bearer " + token)}`;
+    const d = await rpc(token, "files/get_temporary_link", { path });
+    return d.link;
   });
+  let active = api;
+  let fellBack = false;
+  return {
+    get size() { return active.size; },
+    async read(offset, length) {
+      try {
+        return await active.read(offset, length);
+      } catch (e) {
+        if (!fellBack) {
+          fellBack = true;
+          active = tmp;
+          return active.read(offset, length);
+        }
+        throw e;
+      }
+    },
+  };
 }
 
 // config: { refreshToken } (one-click) or { accessToken } (manual fallback)
