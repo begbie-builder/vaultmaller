@@ -63,12 +63,12 @@ body[data-theme="dark"] {
   --bg: #242E2E; --fg: var(--ivory); --panel: #2C3838; --panel-2: #364444;
   --line: #4A5A5A; --mut: #9DB3B0; --hl: var(--soft); --ok-c: #7CC9A1;
 }
-body[data-theme="dark"][data-env="sources"], body[data-theme="dark"][data-env="settings"] { --bg: #202929; }
+body[data-theme="dark"][data-env="sources"], body[data-theme="dark"][data-env="settings"], body[data-theme="dark"][data-env="help"] { --bg: #202929; }
 body[data-theme="light"] {
   --bg: var(--paper); --fg: var(--ink); --panel: var(--white); --panel-2: var(--paper-2);
   --line: var(--ink); --mut: var(--grey); --hl: var(--accent); --ok-c: #157F3D;
 }
-body[data-theme="light"][data-env="sources"], body[data-theme="light"][data-env="settings"] { --bg: var(--paper-2); --panel-2: var(--paper); }
+body[data-theme="light"][data-env="sources"], body[data-theme="light"][data-env="settings"], body[data-theme="light"][data-env="help"] { --bg: var(--paper-2); --panel-2: var(--paper); }
 body[data-env="films"], body[data-theme="light"][data-env="films"] {
   --bg: var(--screen); --fg: var(--ivory); --panel: var(--screen-2); --panel-2: var(--screen-3);
   --line: var(--screen-line); --mut: var(--screen-grey); --hl: var(--soft); --ok-c: #7CC9A1;
@@ -875,3 +875,29 @@ body[data-density="compact"] .poster { flex: 0 0 140px; }
 }
 .lb-handoff .mono { color: var(--soft); }
 .lb-handoff p { color: var(--screen-grey); font-size: 14.5px; max-width: 380px; }
+
+
+/* ==================================================================
+   HELP / INFO — the manual, quiet and honest
+   ================================================================== */
+.help-wrap { max-width: 880px; display: grid; gap: 18px; }
+.help-p { font-size: 14.5px; line-height: 1.65; color: var(--fg); padding: 10px 0 4px; }
+.help-p + .help-p { border-top: 1px solid var(--panel-2); }
+.help-p b { color: var(--hl); }
+.help-list { list-style: none; display: grid; }
+.help-list li {
+  font-size: 14px; line-height: 1.6; color: var(--mut);
+  padding: 11px 0; border-top: 1px solid var(--panel-2);
+}
+.help-list li:first-child { border-top: none; }
+.help-list b { color: var(--fg); }
+
+/* fullscreen: the frame belongs to the page, not the film */
+.lightbox-stage video:fullscreen,
+.lightbox-stage iframe:fullscreen {
+  border: none; border-radius: 0; max-width: none; max-height: none;
+}
+.lightbox-stage video:-webkit-full-screen,
+.lightbox-stage iframe:-webkit-full-screen {
+  border: none; border-radius: 0; max-width: none; max-height: none;
+}

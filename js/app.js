@@ -475,6 +475,7 @@ function wireUserMenu() {
     if (!item) return;
     menu.classList.add("hidden");
     if (item.dataset.menu === "settings") setEnv("settings");
+    else if (item.dataset.menu === "help") setEnv("help");
     else if (item.dataset.menu === "photo") $("#avatar-input").click();
     else if (item.dataset.menu === "signout") FB && FB.logOut();
   });
@@ -485,7 +486,7 @@ function setEnv(env) {
   document.body.dataset.env = env;
   $$(".envtab").forEach((t) => t.classList.toggle("is-active", t.dataset.env === env));
   positionEnvInk();
-  ["photos", "films", "sources", "settings"].forEach((e) => {
+  ["photos", "films", "sources", "settings", "help"].forEach((e) => {
     const sec = $(`#env-${e}`);
     if (e === env) { sec.classList.remove("hidden"); sec.style.animation = "none"; void sec.offsetWidth; sec.style.animation = ""; }
     else sec.classList.add("hidden");
@@ -537,6 +538,7 @@ function refreshEnv() {
   if (state.env === "photos") renderPhotos();
   else if (state.env === "films") renderFilms();
   else if (state.env === "settings") renderSettings();
+  else if (state.env === "help") { /* static page */ }
   else renderSources();
 }
 
@@ -1657,13 +1659,19 @@ async function renderLightbox() {
   }
 }
 
-// Dropbox video: always try Vaultmall's own player first — browsers
-// decode more than people think (h264 mkv, hardware HEVC on most
-// machines). If the browser genuinely can't decode the file, hand off
-// to Dropbox's full player, which transcodes anything server-side.
+// Dropbox video playback, in order of preference:
+//   .mkv        -> Vaultmux (our streaming remuxer) on every browser
+//   mp4/mov/etc -> the native player
+//   otherwise   -> hand-off to Dropbox's transcoding player
 async function playDropboxVideo(stage, m) {
   const st = getSettings();
   const openedFor = lightboxIndex;
+
+  if (/\.(mkv)$/i.test(m.title) && m.path) {
+    const ok = await playViaVaultmux(stage, m, openedFor);
+    if (ok || lightboxIndex !== openedFor) return;
+    return dropboxHandoff(stage, m, openedFor);
+  }
 
   stage.innerHTML = "";
   const vid = document.createElement("video");
@@ -1682,45 +1690,58 @@ async function playDropboxVideo(stage, m) {
   });
   if (playable || lightboxIndex !== openedFor || $("#lightbox").classList.contains("hidden")) return;
 
-  // Tier 2: the browser refused the CONTAINER (Safari + mkv). Rewrap the
-  // untouched compressed stream into fragmented MP4 in the browser and
-  // feed it through Media Source Extensions — hardware decode, no
-  // transcode, full seeking via the file's cue index.
-  if (/\.(mkv|webm)$/i.test(m.title)) {
-    stage.innerHTML = `<div class="lb-loading">REWRAPPING FOR THIS BROWSER…</div>`;
-    try {
-      const { TransmuxPlayer, transmuxSupported } = await import("./player/transmux-player.js");
-      if (transmuxSupported()) {
-        if (lightboxIndex !== openedFor) return;
-        const src = getProvider("dropbox").module.transmuxSource((state.profile.connections || {}).dropbox || {}, m.path);
-        const v2 = document.createElement("video");
-        v2.controls = true;
-        if (st.loop) v2.loop = true;
-        stage.innerHTML = "";
-        stage.appendChild(v2);
-        const player = new TransmuxPlayer(v2, src, {
-          onNote: (n) => toast("Playback", n, ""),
-        });
-        activeTransmux = player;
-        await player.start();
-        if (lightboxIndex !== openedFor) { killTransmux(); return; }
-        if (st.autoplay) v2.play().catch(() => { /* gesture rules */ });
-        return;
-      }
-    } catch (e) {
-      killTransmux();
-      if (lightboxIndex !== openedFor) return;
-      // codec/container genuinely undecodable here → fall through to hand-off
-    }
+  // Container refused natively (webm edge cases): give Vaultmux a shot.
+  if (/\.(webm)$/i.test(m.title) && m.path) {
+    const ok = await playViaVaultmux(stage, m, openedFor);
+    if (ok || lightboxIndex !== openedFor) return;
   }
 
-  // Tier 3: this hardware/browser can't decode the streams at all.
+  return dropboxHandoff(stage, m, openedFor);
+}
+
+// Vaultmux: Vaultmall's streaming remuxer. Rewraps Matroska into
+// fragmented MP4 in the browser and plays it through MSE with the
+// compressed frames untouched. Returns true when playback engaged.
+async function playViaVaultmux(stage, m, openedFor) {
+  const st = getSettings();
+  stage.innerHTML = `<div class="lb-loading">ENGAGING VAULTMUX…</div>`;
+  try {
+    const { TransmuxPlayer, transmuxSupported } = await import("./player/transmux-player.js");
+    if (!transmuxSupported()) return false;
+    if (lightboxIndex !== openedFor) return false;
+    const src = getProvider("dropbox").module.transmuxSource((state.profile.connections || {}).dropbox || {}, m.path);
+    const v2 = document.createElement("video");
+    v2.controls = true;
+    if (st.loop) v2.loop = true;
+    stage.innerHTML = "";
+    stage.appendChild(v2);
+    const player = new TransmuxPlayer(v2, src, {
+      onNote: (n) => toast("Vaultmux", n, ""),
+    });
+    activeTransmux = player;
+    const info = await player.start();
+    if (lightboxIndex !== openedFor) { killTransmux(); return false; }
+    if (st.autoplay) v2.play().catch(() => { /* gesture rules */ });
+    // The subtle brag, once per session.
+    if (!sessionStorage.getItem("vaultmall:mux-hello")) {
+      sessionStorage.setItem("vaultmall:mux-hello", "1");
+      toast("Vaultmux engaged", `Streaming this MKV natively (${info.videoCodec}). No conversion, no waiting.`, "ok");
+    }
+    return true;
+  } catch (e) {
+    killTransmux();
+    return false;
+  }
+}
+
+// Last resort: Dropbox's own transcoding player in a new tab.
+async function dropboxHandoff(stage, m, openedFor) {
   stage.innerHTML = `<div class="lb-loading">GETTING A PLAYABLE LINK…</div>`;
   try {
     const link = await getProvider("dropbox").module.videoLink((state.profile.connections || {}).dropbox || {}, m.path);
     if (lightboxIndex !== openedFor) return;
     const panel = el("div", "lb-handoff", `
-      <span class="mono">THIS BROWSER CAN'T DECODE THIS FILE (LIKELY 4K x265)</span>
+      <span class="mono">THIS BROWSER CAN'T DECODE THIS FILE'S STREAMS</span>
       <p>Dropbox's player converts it on their servers and plays it instantly.</p>`);
     const go = el("a", "btn btn-accent", "▶&nbsp;&nbsp;Play in the Dropbox player&nbsp;↗");
     go.href = link;

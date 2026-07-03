@@ -95,6 +95,7 @@
           </button>
           <div id="user-menu" class="usermenu hidden">
             <button data-menu="settings">Settings</button>
+            <button data-menu="help">Help &amp; info</button>
             <button data-menu="photo">Change photo</button>
             <button data-menu="signout">Sign out</button>
           </div>
@@ -310,6 +311,82 @@
             <div><b>Clear this device</b><span>Wipes the local cache. Your account copy is untouched.</span></div>
             <button class="btn btn-danger btn-sm" id="clear-cache-btn">Clear</button>
           </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- ========== HELP / INFO ========== -->
+    <main id="env-help" class="env env-help hidden">
+      <div class="env-head">
+        <div>
+          <div class="kicker mono">THE MANUAL</div>
+          <h2 class="env-title">Help &amp; info</h2>
+        </div>
+      </div>
+
+      <div class="help-wrap">
+
+        <section class="setcard">
+          <h3 class="setcard-title">Playing your media</h3>
+          <p class="help-p">The short version: <b>MP4 files (H.264 video, AAC audio) play instantly
+          everywhere</b>, on every source and every device. If you get to choose a format, choose that.</p>
+          <p class="help-p">Got MKVs instead? You're covered. Vaultmall ships
+          <b>Vaultmux</b>, its own streaming remuxer: it reads the MKV over the network,
+          rewraps the video and audio in real time and plays them in Vaultmall's own
+          player. No conversion step, no waiting, no quality loss, full seeking. It
+          engages automatically whenever you press play on an MKV.</p>
+        </section>
+
+        <section class="setcard">
+          <h3 class="setcard-title">Vaultmux, and its honest limits</h3>
+          <ul class="help-list">
+            <li><b>Works with:</b> Dropbox, today. Other sources use their own playback routes below.</li>
+            <li><b>Video it handles:</b> H.264, HEVC (x265) and VP9 inside MKV or WebM.</li>
+            <li><b>Audio it handles:</b> AAC. That covers most files.</li>
+            <li><b>4K x265 needs hardware.</b> Vaultmux never converts video, so your device's
+              hardware decoder does the work. Macs from 2017 on and most recent Windows
+              machines have HEVC hardware. Safari is the most generous with it.</li>
+            <li><b>DTS and Dolby audio can't be decoded by any browser.</b> Vaultmux will play
+              the video silently and tell you; use the one-click Dropbox player hand-off for
+              those files, or prefer AAC audio tracks.</li>
+            <li><b>Seeking</b> uses the MKV's own cue index, which nearly every MKV has.</li>
+            <li>If Vaultmux can't play something, you always get a one-click hand-off to
+              Dropbox's own player, which converts anything on their servers.</li>
+          </ul>
+        </section>
+
+        <section class="setcard">
+          <h3 class="setcard-title">Sources at a glance</h3>
+          <ul class="help-list">
+            <li><b>Local Files</b> · Best all-rounder: photos and videos straight off this
+              machine, nothing uploaded. Limits: desktop Chrome, Edge or Brave only; one
+              click to reconnect each visit; this device only.</li>
+            <li><b>Dropbox</b> · The full experience: one-click connect, photos, native video,
+              and Vaultmux for MKVs. Limits: free accounts have daily bandwidth caps;
+              un-reviewed apps allow 500 connected users.</li>
+            <li><b>Cloudinary</b> · A real media CDN, great for streaming MP4s and photos.
+              Limits: needs the deployed site (the serverless helper); 25 GB on the free plan.</li>
+            <li><b>Google Drive</b> · Photos inline; videos play through Drive's embedded
+              player inside Vaultmall. Limits: you must be signed into Google in this
+              browser; no Vaultmux, so playback quality choices are Drive's.</li>
+            <li><b>MEGA</b> · End-to-end encrypted; files decrypt in your browser. Limits:
+              best for smaller folders and photos; whole files decrypt before video plays.</li>
+          </ul>
+        </section>
+
+        <section class="setcard">
+          <h3 class="setcard-title">Metadata keys</h3>
+          <ul class="help-list">
+            <li><b>TMDb key</b> (required for Cinema): free at
+              <code>themoviedb.org</code> → Settings → API. Powers posters, backdrops,
+              logos, ratings and cast.</li>
+            <li><b>OMDb key</b> (optional): free at <code>omdbapi.com/apikey.aspx</code>,
+              1,000 requests a day. Adds IMDb ratings and Rotten Tomatoes scores to
+              title pages. Without it those two tiles read n/a.</li>
+            <li>Both live in Settings → nothing to reconfigure per device; they sync
+              with your account.</li>
+          </ul>
         </section>
 
       </div>
