@@ -174,8 +174,12 @@ export async function titleDetails(key, kind, id) {
 export async function omdbScores(omdbKey, imdbId) {
   if (!omdbKey || !imdbId) return {};
   const res = await fetch(`https://www.omdbapi.com/?apikey=${encodeURIComponent(omdbKey)}&i=${imdbId}`);
-  if (!res.ok) return {};
-  const d = await res.json();
+  const d = await res.json().catch(() => ({}));
+  // A bad or not-yet-activated key answers 401 with an Error field.
+  if (d.Error && /api key/i.test(d.Error)) {
+    throw new Error("OMDb rejected the key. Check it in Settings, and make sure you clicked the activation link OMDb emailed you.");
+  }
+  if (!res.ok || d.Response === "False") return {};
   const rt = (d.Ratings || []).find((r) => r.Source === "Rotten Tomatoes");
   return {
     imdb: d.imdbRating && d.imdbRating !== "N/A" ? d.imdbRating : "",

@@ -446,6 +446,7 @@ function wireAppUI() {
   $("#meta-form").addEventListener("submit", (e) => {
     e.preventDefault();
     state.meta = { tmdb: $("#tmdb-key").value.trim(), omdb: $("#omdb-key").value.trim() };
+    omdbComplained = false; // a fresh key deserves a fresh complaint, if it earns one
     saveMeta(state.user.uid, state.meta);
     pushSync();
     toast("Metadata keys saved", state.meta.tmdb ? "Films will now identify themselves." : "TMDb key removed.", "ok");
@@ -1050,7 +1051,8 @@ async function autoMatch(entries) {
       if (entry.series) hits = hits.filter((h) => h.kind === "tv").concat(hits.filter((h) => h.kind !== "tv"));
       if (hits.length) {
         const detail = await F.titleDetails(state.meta.tmdb, hits[0].kind, hits[0].tmdbId);
-        const scores = await F.omdbScores(state.meta.omdb, detail.imdbId).catch(() => ({}));
+        const scores = await F.omdbScores(state.meta.omdb, detail.imdbId)
+          .catch((err) => { omdbComplain(err); return {}; });
         fs.matches[entry.key] = { ...detail, ...scores };
       } else {
         fs.matches[entry.key] = { failed: true };
@@ -1068,6 +1070,14 @@ async function autoMatch(entries) {
   setTimeout(() => { hide("#films-matchbar"); if (state.env === "films") renderFilms(); }, 400);
 }
 
+// A broken OMDb key fails on every title; complain once, not per film.
+let omdbComplained = false;
+function omdbComplain(e) {
+  if (omdbComplained || !/OMDb/.test(e.message || "")) return;
+  omdbComplained = true;
+  toast("OMDb", e.message, "err");
+}
+
 // ---- film / series title page ----
 function openFilmDetail(entry, match) {
   renderFilmSheet(entry, match);
@@ -1077,11 +1087,19 @@ function openFilmDetail(entry, match) {
 }
 
 // Matches saved before logos/cast photos existed get upgraded in place.
+// Same for scores: an OMDb key added after a title was matched still
+// gets its IMDb/RT numbers pulled the next time the page opens.
 async function enrichMatch(entry, match) {
-  if (match.rich || !state.meta.tmdb || !match.tmdbId) return;
+  if (!state.meta.tmdb || !match.tmdbId) return;
+  const needsDetail = !match.rich;
+  const needsScores = !!state.meta.omdb && !match.imdb && !match.rt;
+  if (!needsDetail && !needsScores) return;
   try {
-    const detail = await F.titleDetails(state.meta.tmdb, match.kind || "movie", match.tmdbId);
-    const scores = await F.omdbScores(state.meta.omdb, detail.imdbId).catch(() => ({}));
+    const detail = needsDetail
+      ? await F.titleDetails(state.meta.tmdb, match.kind || "movie", match.tmdbId)
+      : {};
+    const scores = await F.omdbScores(state.meta.omdb, detail.imdbId || match.imdbId)
+      .catch((e) => { omdbComplain(e); return {}; });
     Object.assign(match, detail, scores);
     state.films.store.matches[entry.key] = match;
     F.saveFilmStore(state.user.uid, state.films.store);
@@ -1235,7 +1253,8 @@ async function runMatchSearch() {
         row.querySelector(".mh-go").textContent = "Linking…";
         try {
           const detail = await F.titleDetails(state.meta.tmdb, h.kind, h.tmdbId);
-          const scores = await F.omdbScores(state.meta.omdb, detail.imdbId).catch(() => ({}));
+          const scores = await F.omdbScores(state.meta.omdb, detail.imdbId)
+            .catch((err) => { omdbComplain(err); return {}; });
           const fs = state.films.store;
           fs.matches[matchTarget.key] = { ...detail, ...scores };
           // Manual link implies: these files ARE this title.
