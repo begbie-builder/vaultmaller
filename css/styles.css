@@ -262,7 +262,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); pa
      category picker to exactly where the content column begins */
   grid-template-columns: var(--side-w) auto minmax(220px, 1fr) auto auto;
   align-items: center; gap: var(--gap);
-  padding: 22px var(--pad-x) 16px;
+  padding: 20px var(--pad-x); /* equal top and bottom */
 }
 .brand { display: flex; align-items: center; gap: 11px; justify-self: start; }
 .brand-mark { border-radius: var(--r-xs); transition: transform 0.4s var(--pop); }
@@ -274,7 +274,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); pa
 .cat-btn {
   display: flex; align-items: center; gap: 12px;
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-sm);
-  padding: 12px 18px; font-weight: 600; font-size: 14.5px; color: var(--fg);
+  height: 52px; padding: 0 18px; font-weight: 600; font-size: 14.5px; color: var(--fg);
   min-width: 128px; justify-content: space-between;
   transition: background-color 0.2s var(--snap), border-color 0.2s var(--snap);
 }
@@ -303,7 +303,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); pa
 .searchbar {
   display: flex; align-items: center; gap: 12px;
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-sm);
-  padding: 0 16px; height: 47px; max-width: 640px;
+  padding: 0 16px; height: 52px; max-width: 640px;
   color: var(--mut);
   transition: border-color 0.25s var(--snap), background-color 0.25s var(--snap);
 }
@@ -332,7 +332,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); pa
 /* icon buttons + notifications */
 .iconbtn {
   position: relative;
-  width: 47px; height: 47px;
+  width: 52px; height: 52px;
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-sm);
   color: var(--fg);
   display: flex; align-items: center; justify-content: center;
@@ -390,7 +390,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); pa
 .userbtn {
   display: flex; align-items: center; gap: 11px;
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-sm);
-  padding: 6px 14px 6px 7px; height: 47px;
+  padding: 6px 14px 6px 7px; height: 52px;
   transition: background-color 0.2s var(--snap);
 }
 .userbtn:hover { background: var(--panel-2); }
@@ -525,9 +525,9 @@ code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); pa
 /* ==================================================================
    HERO — the marquee with the peeking deck
    ================================================================== */
-.hero { position: relative; margin: 2px 0 26px; --hs-peek: 96px; }
-/* dots ride the top-right, lined up with the top card of the stack */
-.hero-dots { display: flex; justify-content: flex-end; gap: 7px; padding: 0 var(--hs-peek) 12px 0; }
+.hero { position: relative; margin: 6px 0 26px; --hs-peek: 96px; }
+/* dots ride the far top-right, in the empty corner above the peek cards */
+.hero-dots { display: flex; justify-content: flex-end; gap: 8px; padding: 2px 20px 18px 0; }
 .hero-dot {
   width: 8px; height: 8px; border-radius: 999px;
   background: var(--line); padding: 0;
