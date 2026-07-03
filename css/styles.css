@@ -235,29 +235,34 @@ code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); pa
 .xbtn:hover { background: var(--accent); border-color: var(--accent); color: var(--white); transform: rotate(90deg); }
 
 /* ==================================================================
-   THE FRAME — one rounded card, floating
+   THE FRAME — full-bleed, edge to edge
    ================================================================== */
-.app { min-height: 100vh; padding: clamp(10px, 1.6vw, 26px); display: flex; }
+:root {
+  --pad-x: clamp(18px, 2.6vw, 52px);   /* one gutter for topbar + shell */
+  --side-w: clamp(220px, 16vw, 262px); /* sidebar column */
+  --gap: clamp(12px, 1.8vw, 30px);
+}
+.app { min-height: 100vh; display: flex; }
 .frame {
-  flex: 1; max-width: 1720px; margin: 0 auto;
-  background: var(--frame); border-radius: var(--r-frame);
-  box-shadow: 0 40px 90px rgba(10, 17, 19, 0.4);
+  flex: 1; min-height: 100vh;
+  background: var(--frame);
   display: flex; flex-direction: column;
   overflow: clip;
   animation: frameIn 0.7s var(--snap);
   transition: background-color 0.5s var(--snap);
 }
-@keyframes frameIn { from { opacity: 0; transform: translateY(26px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes frameIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 
 /* ==================================================================
-   TOPBAR
+   TOPBAR — the picker + search line up with the content column
    ================================================================== */
 .topbar {
-  display: grid; grid-template-columns: auto auto minmax(220px, 1fr) auto auto;
-  align-items: center; gap: clamp(12px, 1.6vw, 26px);
-  padding: 20px clamp(16px, 2.4vw, 34px) 14px;
+  display: grid;
+  grid-template-columns: calc(var(--side-w) + var(--gap)) auto minmax(220px, 1fr) auto auto;
+  align-items: center; gap: var(--gap);
+  padding: 22px var(--pad-x) 16px;
 }
-.brand { display: flex; align-items: center; gap: 11px; }
+.brand { display: flex; align-items: center; gap: 11px; justify-self: start; }
 .brand-mark { border-radius: var(--r-xs); transition: transform 0.4s var(--pop); }
 .brand:hover .brand-mark { transform: rotate(-8deg) scale(1.08); }
 .brand-word { font-family: var(--serif); font-weight: 900; font-size: 23px; letter-spacing: -0.01em; color: var(--fg); }
@@ -410,9 +415,9 @@ code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); pa
    SHELL — sidebar + content
    ================================================================== */
 .shell {
-  flex: 1; display: grid; grid-template-columns: 236px minmax(0, 1fr);
-  gap: clamp(10px, 1.5vw, 22px);
-  padding: 6px clamp(16px, 2.4vw, 34px) 30px;
+  flex: 1; display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr);
+  gap: var(--gap);
+  padding: 6px var(--pad-x) 40px;
   align-items: start;
 }
 
@@ -519,30 +524,28 @@ code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); pa
 .hero-dot.is-active { width: 22px; background: var(--hl); }
 .hero-dot:hover { background: var(--mut); }
 
-.hero-stack { position: relative; height: clamp(300px, 34vw, 450px); }
+.hero-stack { position: relative; height: clamp(300px, 31vw, 540px); }
+/* a flat carousel: cards sit side by side in lanes and SLIDE in from
+   the right; the next feature peeks at the right edge */
 .hs-card {
   position: absolute; top: 0; bottom: 0; left: 0;
-  width: calc(100% - 128px);
+  width: calc(100% - 132px);
   border-radius: var(--r-lg); overflow: hidden;
   background: var(--panel);
   box-shadow: 0 22px 50px rgba(9, 14, 15, 0.4);
-  transition: transform 0.65s var(--snap), opacity 0.5s var(--snap);
+  transition: transform 0.7s var(--snap);
   will-change: transform;
 }
 .hs-card .hs-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.pos-0 .hs-art { animation: kenburns 16s var(--snap) infinite alternate; }
+.hs-card.is-front .hs-art { animation: kenburns 16s var(--snap) infinite alternate; }
 @keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.07); } }
 .hs-scrim {
   position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(to top, rgba(10, 14, 15, 0.72) 0%, rgba(10, 14, 15, 0.06) 42%, rgba(10, 14, 15, 0) 60%);
 }
-/* deck positions: 0 front-left, 1 & 2 peek at the right edge */
-.hs-card.pos-0 { transform: translateX(0); z-index: 3; cursor: default; }
-.hs-card.pos-1 { transform: translateX(calc(100% + 14px)); z-index: 4; cursor: pointer; }
-.hs-card.pos-2 { transform: translateX(calc(100% + 70px)); z-index: 5; cursor: pointer; }
-.hs-card.pos-3 { transform: translateX(calc(100% + 128px)); opacity: 0; z-index: 1; pointer-events: none; }
-.hs-card:not(.pos-0) .hs-tags, .hs-card:not(.pos-0) .hs-bottom, .hs-card:not(.pos-0) .hs-fav { opacity: 0; pointer-events: none; }
-.hs-card .hs-tags, .hs-card .hs-bottom, .hs-card .hs-fav { transition: opacity 0.4s var(--snap) 0.15s; }
+.hs-card:not(.is-front) { cursor: pointer; }
+.hs-card:not(.is-front) .hs-tags, .hs-card:not(.is-front) .hs-bottom, .hs-card:not(.is-front) .hs-fav { opacity: 0; pointer-events: none; }
+.hs-card .hs-tags, .hs-card .hs-bottom, .hs-card .hs-fav { transition: opacity 0.4s var(--snap) 0.2s; }
 
 .hs-tags { position: absolute; top: 18px; left: 20px; display: flex; gap: 8px; flex-wrap: wrap; z-index: 2; }
 .hs-tag {
@@ -610,10 +613,24 @@ code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); pa
    POSTER GRID — the shelf
    ================================================================== */
 .films-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
-  gap: 26px 18px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+  gap: 28px 20px;
 }
-body[data-density="compact"] .films-grid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 20px 14px; }
+body[data-density="compact"] .films-grid { grid-template-columns: repeat(auto-fill, minmax(152px, 1fr)); gap: 20px 14px; }
+
+/* extra shelves below the grid — different sorts of the same library */
+.rails { display: grid; gap: 34px; margin-top: 44px; }
+.rail-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.rail-title { font-family: var(--serif); font-weight: 800; font-size: 23px; }
+.rail-nav { display: flex; gap: 8px; margin-left: auto; }
+.rail-strip {
+  display: flex; gap: 18px; overflow-x: auto;
+  scroll-snap-type: x mandatory; scrollbar-width: none;
+  padding: 6px 2px 10px; margin-top: -6px;
+}
+.rail-strip::-webkit-scrollbar { display: none; }
+.rail-strip .pcard { flex: 0 0 172px; scroll-snap-align: start; }
+body[data-density="compact"] .rail-strip .pcard { flex-basis: 148px; }
 
 .pcard { cursor: pointer; opacity: 0; transform: translateY(16px); }
 .pcard.in { opacity: 1; transform: none; transition: opacity 0.5s var(--snap), transform 0.5s var(--snap); transition-delay: calc(var(--d, 0) * 35ms); }
@@ -1097,12 +1114,12 @@ body[data-density="compact"] .tile { margin-bottom: 8px; }
    RESPONSIVE
    ================================================================== */
 @media (max-width: 1180px) {
-  .hs-card { width: 100%; }
-  .hs-card.pos-1, .hs-card.pos-2 { transform: translateX(calc(100% + 24px)); opacity: 0; pointer-events: none; }
+  .hs-card { width: 100%; } /* lanes push the peek fully off-screen */
 }
 @media (max-width: 980px) {
   .auth { grid-template-columns: 1fr; }
   .auth-left { min-height: 42vh; }
+  .topbar { grid-template-columns: auto auto minmax(180px, 1fr) auto auto; }
   .shell { grid-template-columns: 1fr; }
   .sidebar { position: static; grid-template-columns: 1fr 1fr; padding-top: 0; }
   .snav-2 { border-top: none; padding-top: 0; }

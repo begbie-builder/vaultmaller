@@ -1018,6 +1018,7 @@ function renderCinema() {
   if (headed) $("#cin-title").textContent = CIN_TITLES[env];
 
   if (!candidates.length) {
+    $("#films-rails").innerHTML = "";
     hide("#films-hero"); hide("#films-matchbar"); hide("#chips-row");
     $("#films-setup-msg").textContent = Object.keys(state.profile.connections || {}).length
       ? "Nothing film-shaped yet. Name things like Title (2019).mkv or keep shows in Season folders and they will find their own way here."
@@ -1078,6 +1079,9 @@ function renderCinema() {
 
   if (headed) $("#cin-count").textContent = `${shown.length} TITLE${shown.length === 1 ? "" : "S"}`;
 
+  const rails = $("#films-rails");
+  rails.innerHTML = "";
+
   if (!shown.length) {
     grid.appendChild(el("div", "bigempty", `<div class="bigempty-word">${env === "favorites" ? "EMPTY" : "QUIET"}</div>
       <p>${env === "favorites" ? "Nothing hearted yet. The ♥ lives on the hero and on every title page." : "Nothing matches this view."}</p>`));
@@ -1089,6 +1093,53 @@ function renderCinema() {
     grid.appendChild(card);
     requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add("in")));
   });
+
+  // extra shelves under the grid: same library, different sorts.
+  // Only on the two big home views, unfiltered — the shelves ARE the browsing.
+  if ((env === "movies" || env === "tv") && !state.search && state.genre === "All") {
+    const matched = entries.filter((e) => e.match);
+    const favs = entries.filter((e) => isFav(e.key));
+    if (matched.length >= 4) {
+      rails.appendChild(buildRail("Top rated", [...matched].sort((a, b) => b.match.vote - a.match.vote).slice(0, 15)));
+    }
+    if (favs.length >= 2) {
+      rails.appendChild(buildRail("Your favorites", favs.slice(0, 15)));
+    }
+    const byGenre = new Map();
+    for (const e of matched) {
+      for (const g of e.match.genres || []) {
+        if (!byGenre.has(g)) byGenre.set(g, []);
+        byGenre.get(g).push(e);
+      }
+    }
+    [...byGenre.entries()]
+      .filter(([, list]) => list.length >= 3)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 3)
+      .forEach(([g, list]) => rails.appendChild(buildRail(g, list.slice(0, 15))));
+  }
+}
+
+function buildRail(title, list) {
+  const rail = el("section", "rail");
+  const head = el("div", "rail-head", `<span class="rail-title">${escapeHtml(title)}</span>`);
+  const nav = el("div", "rail-nav");
+  const prev = el("button", "chip-arrow", `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>`);
+  const next = el("button", "chip-arrow", `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>`);
+  nav.append(prev, next);
+  head.appendChild(nav);
+  rail.appendChild(head);
+
+  const strip = el("div", "rail-strip");
+  prev.addEventListener("click", () => strip.scrollBy({ left: -strip.clientWidth * 0.8, behavior: "smooth" }));
+  next.addEventListener("click", () => strip.scrollBy({ left: strip.clientWidth * 0.8, behavior: "smooth" }));
+  list.forEach((e, i) => {
+    const card = buildPoster(e, i);
+    strip.appendChild(card);
+    requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add("in")));
+  });
+  rail.appendChild(strip);
+  return rail;
 }
 
 function renderChips(entries) {
@@ -1196,8 +1247,8 @@ function renderHero(entries) {
       if (state.env === "favorites") renderCinema();
     });
     card.addEventListener("click", () => {
-      // clicking a peeking card brings it forward
-      if (!card.classList.contains("pos-0")) goHero(i);
+      // clicking the peeking card brings it forward
+      if (!card.classList.contains("is-front")) goHero(i);
     });
     stack.appendChild(card);
 
@@ -1218,13 +1269,30 @@ function renderHero(entries) {
   layoutHero();
   heroTimer = setInterval(() => stepHero(1), 8000);
 }
+// Cards live in side-by-side lanes: lane 0 is the front card, lane 1
+// peeks at the right edge, the rest wait off-screen. Advancing slides
+// everything one lane left, so the next feature slides IN from the
+// right while the old one slides out to the left (lane -1).
 function layoutHero() {
   const stack = $("#hero-stack");
   const n = heroEntries.length;
+  const offscreen = (r) => r < 0 || r > 1;
   $$(".hs-card", stack).forEach((c, i) => {
-    const rel = ((i - heroIndex) % n + n) % n;
-    c.classList.remove("pos-0", "pos-1", "pos-2", "pos-3");
-    c.classList.add("pos-" + Math.min(rel, 3));
+    let r = ((i - heroIndex) % n + n) % n;
+    if (n > 2 && r === n - 1) r = -1; // the card just watched exits stage left
+    const prev = c.dataset.r === undefined ? null : +c.dataset.r;
+    c.dataset.r = r;
+    // A card moving between two off-screen lanes must not sweep across
+    // the visible stage: snap it silently.
+    if (prev !== null && offscreen(prev) && offscreen(r)) {
+      c.style.transition = "none";
+      c.style.transform = `translateX(calc(${r * 100}% + ${r * 16}px))`;
+      void c.offsetWidth;
+      c.style.transition = "";
+    } else {
+      c.style.transform = `translateX(calc(${r * 100}% + ${r * 16}px))`;
+    }
+    c.classList.toggle("is-front", r === 0);
   });
   $$("#hero-dots .hero-dot").forEach((d, di) => d.classList.toggle("is-active", di === heroIndex));
 }
